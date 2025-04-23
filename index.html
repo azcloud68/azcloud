@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Multi-Repo CDN System</title>
+  <script src="cdn-loader.js"></script>
+  <style>
+    /* CSS tương tự như ví dụ trước */
+    .image-card {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 10px 0;
+    }
+    .source-badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+      margin-left: 10px;
+    }
+    .jsdelivr-badge { background: #f0f8ff; color: #0066cc; }
+    .github-badge { background: #f0f0f0; color: #333; }
+  </style>
+</head>
+<body>
+  <h1>Multi-Repo CDN Load Balancer</h1>
+  
+  <div id="controls">
+    <button id="refresh-btn">Refresh Images</button>
+    <button id="clear-cache-btn">Clear Cache</button>
+  </div>
+
+  <div id="image-container">
+    <!-- Images will be loaded here -->
+  </div>
+
+  <div class="stats">
+    <h3>System Statistics</h3>
+    <div id="stats-display"></div>
+    <div id="error-message" class="error"></div>
+  </div>
+
+  <script>
+    const cdn = new MultiCDN('cdn-config.json');
+    const imageKeys = ['test1', 'test2', 'banner']; // Các ảnh cần tải
+
+    async function loadAllImages() {
+      const container = document.getElementById('image-container');
+      container.innerHTML = '';
+      
+      for (const key of imageKeys) {
+        const card = document.createElement('div');
+        card.className = 'image-card';
+        card.innerHTML = `
+          <h3>${key} <span id="${key}-badge" class="source-badge">Loading...</span></h3>
+          <img id="${key}-img" loading="lazy" style="max-width: 300px;">
+          <p id="${key}-status">Đang tải...</p>
+        `;
+        container.appendChild(card);
+
+        try {
+          const startTime = performance.now();
+          const imgUrl = await cdn.getImage(key);
+          const loadTime = (performance.now() - startTime).toFixed(2);
+          
+          document.getElementById(`${key}-img`).src = imgUrl;
+          document.getElementById(`${key}-status`).textContent = 
+            `Tải thành công trong ${loadTime}ms`;
+            
+          const badge = document.getElementById(`${key}-badge`);
+          badge.textContent = imgUrl.includes('jsdelivr') ? 'jsDelivr' : 'GitHub';
+          badge.className += imgUrl.includes('jsdelivr') ? ' jsdelivr-badge' : ' github-badge';
+        } catch (error) {
+          document.getElementById(`${key}-status`).textContent = 
+            `Lỗi: ${error.message}`;
+          document.getElementById(`${key}-img`).src = 
+            'https://placehold.co/600x400?text=Image+Error';
+        }
+      }
+      updateStats();
+    }
+
+    function updateStats() {
+      const stats = cdn.getStats();
+      document.getElementById('stats-display').innerHTML = `
+        <p>Tổng request: ${stats.requests}</p>
+        <p>jsDelivr: ${stats.jsdelivr} (${Math.round(stats.jsdelivr/stats.requests*100)}%)</p>
+        <p>GitHub: ${stats.github} (${Math.round(stats.github/stats.requests*100)}%)</p>
+        <p>Cache hits: ${stats.cacheHits}</p>
+        <p>Lỗi: ${stats.errors}</p>
+      `;
+    }
+
+    document.getElementById('refresh-btn').addEventListener('click', loadAllImages);
+    document.getElementById('clear-cache-btn').addEventListener('click', () => {
+      cdn.clearCache();
+      alert('Cache đã được xóa!');
+    });
+
+    // Tự động tải ảnh khi khởi động
+    document.addEventListener('DOMContentLoaded', loadAllImages);
+  </script>
+</body>
+</html>
