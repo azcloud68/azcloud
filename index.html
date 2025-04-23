@@ -1,74 +1,188 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>CDN Test - Fixed Version</title>
+  <title>CDN Load Balancer - azcloud68</title>
   <script src="cdn-loader.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
-    img { max-width: 100%; margin: 10px 0; border: 1px solid #ddd; display: block; }
-    .stats { background: #f5f5f5; padding: 15px; margin: 20px 0; }
-    .error { color: red; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      line-height: 1.6;
+      color: #333;
+    }
+    h1 {
+      color: #2c3e50;
+      border-bottom: 2px solid #3498db;
+      padding-bottom: 10px;
+    }
+    img {
+      max-width: 100%;
+      height: auto;
+      margin: 15px 0;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      display: block;
+    }
+    .stats {
+      background: #f8f9fa;
+      padding: 20px;
+      margin: 25px 0;
+      border-radius: 5px;
+      border-left: 4px solid #3498db;
+    }
+    .error {
+      color: #e74c3c;
+      background-color: #fdecea;
+      padding: 10px;
+      border-radius: 4px;
+      display: none;
+    }
+    .loading {
+      color: #7f8c8d;
+      font-style: italic;
+    }
+    #images {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 600px) {
+      #images {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
-  <h1>CDN Load Balancer Test - Fixed</h1>
+  <h1>CDN Load Balancer System</h1>
+  <p>Testing CDN performance between jsDelivr and GitHub Pages</p>
   
   <div id="images">
-    <h2>Test Images:</h2>
-    <img id="test1" alt="Test Image 1">
-    <img id="test2" alt="Test Image 2">
+    <div>
+      <h3>Test Image 1</h3>
+      <img id="test1" alt="Test Image 1" loading="lazy">
+      <p class="loading" id="loading1">Loading image 1...</p>
+    </div>
+    <div>
+      <h3>Test Image 2</h3>
+      <img id="test2" alt="Test Image 2" loading="lazy">
+      <p class="loading" id="loading2">Loading image 2...</p>
+    </div>
   </div>
   
   <div class="stats">
-    <h3>Current Stats</h3>
-    <p id="stats-display">Loading stats...</p>
-    <p id="error-message" class="error"></p>
-    <a href="stats.html">View Detailed Stats</a>
+    <h2>CDN Performance Statistics</h2>
+    <div id="stats-display">
+      <p>Initializing CDN system...</p>
+    </div>
+    <div id="error-message" class="error"></div>
+    <div style="margin-top: 15px;">
+      <a href="stats.html" style="color: #3498db; text-decoration: none;">View Detailed Statistics →</a>
+    </div>
   </div>
 
   <script>
-    // Khởi tạo CDN với username GitHub của bạn
-    const cdn = new CDNBalancer('azcloud68');
-    
-    // Hiển thị ảnh
-    async function loadImage(elementId, imagePath) {
+    // Khởi tạo CDN với cấu hình
+    const cdn = new CDNBalancer('azcloud68', {
+      debug: true,
+      retryDelay: 1000,
+      timeout: 5000
+    });
+
+    // Hiển thị ảnh với fallback
+    async function loadImage(elementId, loadingId, imagePath) {
+      const imgElement = document.getElementById(elementId);
+      const loadingElement = document.getElementById(loadingId);
+      
       try {
-        const imgElement = document.getElementById(elementId);
+        loadingElement.textContent = `Loading ${imagePath}...`;
+        
         const imgUrl = await cdn.getImage(imagePath);
         
-        // Thêm timestamp để tránh cache
-        imgElement.src = `${imgUrl}?t=${Date.now()}`;
-        imgElement.onerror = () => {
-          document.getElementById('error-message').textContent = 
-            `Failed to load ${imagePath} from CDN`;
+        imgElement.onload = () => {
+          loadingElement.style.display = 'none';
+          hideError();
         };
+        
+        imgElement.onerror = () => {
+          showError(`Failed to display image: ${imagePath}`);
+          loadingElement.textContent = `Using fallback for ${imagePath}`;
+          imgElement.src = `https://placehold.co/600x400?text=Image+Load+Failed&font=roboto`;
+        };
+        
+        imgElement.src = `${imgUrl}?t=${Date.now()}`;
+        
       } catch (error) {
-        console.error('Error loading image:', error);
+        console.error('CDN Error:', error);
+        showError(`System error: ${error.message}`);
+        loadingElement.textContent = `Using fallback for ${imagePath}`;
+        imgElement.src = `https://placehold.co/600x400?text=CDN+Error&font=roboto`;
       }
     }
-    
+
+    // Hiển thị thông báo lỗi
+    function showError(message) {
+      const errorElement = document.getElementById('error-message');
+      errorElement.textContent = message;
+      errorElement.style.display = 'block';
+    }
+
+    // Ẩn thông báo lỗi
+    function hideError() {
+      document.getElementById('error-message').style.display = 'none';
+    }
+
     // Cập nhật thống kê
     function updateStatsDisplay() {
       const stats = cdn.getStats();
+      const totalRequests = stats.jsdelivr + stats.github;
+      const jsDelivrPercent = totalRequests > 0 
+        ? Math.round((stats.jsdelivr / totalRequests) * 100) 
+        : 0;
+      
       document.getElementById('stats-display').innerHTML = `
-        jsDelivr: ${stats.jsdelivr} requests<br>
-        GitHub: ${stats.github} requests<br>
-        Errors: ${stats.errors}
+        <div style="margin-bottom: 10px;">
+          <strong>jsDelivr:</strong> ${stats.jsdelivr} requests (${jsDelivrPercent}%)
+        </div>
+        <div style="margin-bottom: 10px;">
+          <strong>GitHub Pages:</strong> ${stats.github} requests (${100 - jsDelivrPercent}%)
+        </div>
+        <div>
+          <strong>Total Errors:</strong> ${stats.errors}
+        </div>
+        ${stats.errors > 0 ? '<p style="color: #e74c3c; margin-top: 10px;">Some requests failed. Check console for details.</p>' : ''}
       `;
     }
-    
-    // Load tất cả ảnh
+
+    // Tải tất cả ảnh
     async function loadAllImages() {
-      await loadImage('test1', '/images/test1.jpg');
-      await loadImage('test2', '/images/test2.jpg');
+      console.log('Starting CDN image loading...');
+      try {
+        await Promise.all([
+          loadImage('test1', 'loading1', '/images/test1.jpg'),
+          loadImage('test2', 'loading2', '/images/test2.jpg')
+        ]);
+      } catch (error) {
+        console.error('Initialization error:', error);
+      }
       updateStatsDisplay();
     }
-    
-    // Cập nhật thống kê mỗi 3 giây
-    setInterval(updateStatsDisplay, 3000);
-    
-    // Bắt đầu tải ảnh
-    loadAllImages();
+
+    // Cập nhật thống kê mỗi 2 giây
+    const statsInterval = setInterval(updateStatsDisplay, 2000);
+
+    // Bắt đầu khi DOM sẵn sàng
+    document.addEventListener('DOMContentLoaded', () => {
+      loadAllImages();
+      
+      // Cleanup khi trang đóng
+      window.addEventListener('beforeunload', () => {
+        clearInterval(statsInterval);
+      });
+    });
   </script>
 </body>
 </html>
