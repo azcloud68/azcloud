@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>CDN Stats</title>
+  <script src="cdn-loader.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+    .chart { height: 300px; border: 1px solid #ddd; margin: 20px 0; 
+             display: flex; align-items: flex-end; }
+    .bar { flex-grow: 1; background: #4CAF50; margin: 0 5px; text-align: center; }
+  </style>
+</head>
+<body>
+  <h1>CDN Usage Statistics</h1>
+  <a href="index.html">← Back to Test Page</a>
+  
+  <div class="chart" id="chart">
+    <!-- Biểu đồ sẽ được tạo bằng JavaScript -->
+  </div>
+  
+  <table border="1" cellpadding="10" cellspacing="0">
+    <tr>
+      <th>CDN Provider</th>
+      <th>Requests</th>
+      <th>Percentage</th>
+    </tr>
+    <tr>
+      <td>jsDelivr</td>
+      <td id="jsdelivr-count">0</td>
+      <td id="jsdelivr-percent">0%</td>
+    </tr>
+    <tr>
+      <td>GitHub</td>
+      <td id="github-count">0</td>
+      <td id="github-percent">0%</td>
+    </tr>
+    <tr>
+      <td>Errors</td>
+      <td id="error-count">0</td>
+      <td>-</td>
+    </tr>
+  </table>
+
+  <script>
+    function updateStats() {
+      const stats = cdn.getStats();
+      const total = stats.jsdelivr + stats.github;
+      
+      // Cập nhật bảng
+      document.getElementById('jsdelivr-count').textContent = stats.jsdelivr;
+      document.getElementById('github-count').textContent = stats.github;
+      document.getElementById('error-count').textContent = stats.errors;
+      
+      document.getElementById('jsdelivr-percent').textContent = 
+        total > 0 ? Math.round((stats.jsdelivr / total) * 100) + '%' : '0%';
+      document.getElementById('github-percent').textContent = 
+        total > 0 ? Math.round((stats.github / total) * 100) + '%' : '0%';
+      
+      // Vẽ biểu đồ
+      drawChart(stats);
+    }
+    
+    function drawChart(stats) {
+      const total = stats.jsdelivr + stats.github;
+      const chart = document.getElementById('chart');
+      chart.innerHTML = '';
+      
+      if (total > 0) {
+        const jsdelivrHeight = (stats.jsdelivr / total) * 100;
+        const githubHeight = (stats.github / total) * 100;
+        
+        const jsdelivrBar = document.createElement('div');
+        jsdelivrBar.className = 'bar';
+        jsdelivrBar.style.height = `${jsdelivrHeight}%`;
+        jsdelivrBar.textContent = `jsDelivr (${stats.jsdelivr})`;
+        
+        const githubBar = document.createElement('div');
+        githubBar.className = 'bar';
+        githubBar.style.height = `${githubHeight}%`;
+        githubBar.style.backgroundColor = '#2196F3';
+        githubBar.textContent = `GitHub (${stats.github})`;
+        
+        chart.appendChild(jsdelivrBar);
+        chart.appendChild(githubBar);
+      }
+    }
+    
+    // Cập nhật mỗi 2 giây
+    setInterval(updateStats, 2000);
+    updateStats();
+  </script>
+</body>
+</html>
