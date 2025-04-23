@@ -1,104 +1,116 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Multi-Repo CDN System</title>
+  <title>Advanced CDN System</title>
   <script src="cdn-loader.js"></script>
   <style>
-    /* CSS tương tự như ví dụ trước */
-    .image-card {
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      padding: 15px;
-      margin: 10px 0;
-    }
-    .source-badge {
-      display: inline-block;
+    /* CSS styles... */
+    .source-indicator {
+      font-size: 0.8em;
       padding: 2px 6px;
-      border-radius: 4px;
-      font-size: 12px;
-      margin-left: 10px;
+      border-radius: 3px;
+      background: #e0e0e0;
     }
-    .jsdelivr-badge { background: #f0f8ff; color: #0066cc; }
-    .github-badge { background: #f0f0f0; color: #333; }
+    .jsdelivr { background: #e3f2fd; color: #0d47a1; }
+    .github { background: #f5f5f5; color: #212121; }
   </style>
 </head>
 <body>
-  <h1>Multi-Repo CDN Load Balancer</h1>
+  <h1>Multi-Source CDN Load Balancer</h1>
   
   <div id="controls">
-    <button id="refresh-btn">Refresh Images</button>
-    <button id="clear-cache-btn">Clear Cache</button>
+    <button id="load-images">Load Images</button>
+    <button id="clear-cache">Clear Cache</button>
+    <div id="config-status">Loading configuration...</div>
   </div>
 
-  <div id="image-container">
-    <!-- Images will be loaded here -->
-  </div>
+  <div id="image-container"></div>
 
   <div class="stats">
-    <h3>System Statistics</h3>
-    <div id="stats-display"></div>
+    <h3>Performance Statistics</h3>
+    <pre id="stats-display"></pre>
     <div id="error-message" class="error"></div>
   </div>
 
   <script>
+    // Khởi tạo hệ thống
     const cdn = new MultiCDN('cdn-config.json');
-    const imageKeys = ['test1', 'test2', 'banner']; // Các ảnh cần tải
+    const imageKeys = ['test1', 'test2', 'banner'];
+    let isLoading = false;
 
-    async function loadAllImages() {
-      const container = document.getElementById('image-container');
-      container.innerHTML = '';
-      
-      for (const key of imageKeys) {
-        const card = document.createElement('div');
-        card.className = 'image-card';
-        card.innerHTML = `
-          <h3>${key} <span id="${key}-badge" class="source-badge">Loading...</span></h3>
-          <img id="${key}-img" loading="lazy" style="max-width: 300px;">
-          <p id="${key}-status">Đang tải...</p>
-        `;
-        container.appendChild(card);
+    // Hiển thị ảnh
+    async function loadImage(key) {
+      const container = document.createElement('div');
+      container.className = 'image-card';
+      container.innerHTML = `
+        <h3>${key} <span id="${key}-source" class="source-indicator">...</span></h3>
+        <img id="${key}-img" loading="lazy" alt="${key}">
+        <div id="${key}-status" class="status">Pending</div>
+      `;
+      document.getElementById('image-container').appendChild(container);
 
-        try {
-          const startTime = performance.now();
-          const imgUrl = await cdn.getImage(key);
-          const loadTime = (performance.now() - startTime).toFixed(2);
-          
-          document.getElementById(`${key}-img`).src = imgUrl;
-          document.getElementById(`${key}-status`).textContent = 
-            `Tải thành công trong ${loadTime}ms`;
-            
-          const badge = document.getElementById(`${key}-badge`);
-          badge.textContent = imgUrl.includes('jsdelivr') ? 'jsDelivr' : 'GitHub';
-          badge.className += imgUrl.includes('jsdelivr') ? ' jsdelivr-badge' : ' github-badge';
-        } catch (error) {
-          document.getElementById(`${key}-status`).textContent = 
-            `Lỗi: ${error.message}`;
-          document.getElementById(`${key}-img`).src = 
-            'https://placehold.co/600x400?text=Image+Error';
-        }
+      try {
+        const startTime = performance.now();
+        const imgUrl = await cdn.getImage(key);
+        const loadTime = performance.now() - startTime;
+
+        const imgElement = document.getElementById(`${key}-img`);
+        imgElement.src = imgUrl;
+        
+        const sourceElement = document.getElementById(`${key}-source`);
+        sourceElement.textContent = imgUrl.includes('jsdelivr') ? 'jsDelivr' : 'GitHub';
+        sourceElement.classList.add(imgUrl.includes('jsdelivr') ? 'jsdelivr' : 'github');
+        
+        document.getElementById(`${key}-status`).textContent = 
+          `Loaded in ${loadTime.toFixed(2)}ms | ${new Date().toLocaleTimeString()}`;
+      } catch (error) {
+        document.getElementById(`${key}-status`).textContent = `Error: ${error.message}`;
+        document.getElementById(`${key}-img`).src = 'https://via.placeholder.com/300x200?text=Load+Failed';
+        document.getElementById(`${key}-source`).textContent = 'Failed';
       }
-      updateStats();
     }
 
+    // Cập nhật thống kê
     function updateStats() {
       const stats = cdn.getStats();
-      document.getElementById('stats-display').innerHTML = `
-        <p>Tổng request: ${stats.requests}</p>
-        <p>jsDelivr: ${stats.jsdelivr} (${Math.round(stats.jsdelivr/stats.requests*100)}%)</p>
-        <p>GitHub: ${stats.github} (${Math.round(stats.github/stats.requests*100)}%)</p>
-        <p>Cache hits: ${stats.cacheHits}</p>
-        <p>Lỗi: ${stats.errors}</p>
-      `;
+      document.getElementById('stats-display').innerHTML = JSON.stringify(stats, null, 2);
     }
 
-    document.getElementById('refresh-btn').addEventListener('click', loadAllImages);
-    document.getElementById('clear-cache-btn').addEventListener('click', () => {
+    // Tải tất cả ảnh
+    async function loadAllImages() {
+      if (isLoading) return;
+      
+      isLoading = true;
+      document.getElementById('load-images').disabled = true;
+      document.getElementById('image-container').innerHTML = '';
+      
+      try {
+        for (const key of imageKeys) {
+          await loadImage(key);
+          updateStats();
+        }
+      } finally {
+        isLoading = false;
+        document.getElementById('load-images').disabled = false;
+      }
+    }
+
+    // Event listeners
+    document.getElementById('load-images').addEventListener('click', loadAllImages);
+    document.getElementById('clear-cache').addEventListener('click', () => {
       cdn.clearCache();
-      alert('Cache đã được xóa!');
+      updateStats();
+      alert('Cache cleared!');
     });
 
-    // Tự động tải ảnh khi khởi động
-    document.addEventListener('DOMContentLoaded', loadAllImages);
+    // Tự động tải khi config sẵn sàng
+    const checkConfig = setInterval(() => {
+      if (cdn.config) {
+        clearInterval(checkConfig);
+        document.getElementById('config-status').textContent = 'Configuration loaded';
+        loadAllImages();
+      }
+    }, 500);
   </script>
 </body>
 </html>
