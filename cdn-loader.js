@@ -1,8 +1,8 @@
 class CDNBalancer {
   constructor() {
     this.cdnSources = [
-      'https://cdn.jsdelivr.net/gh/[username]/my-cdn-test@main',
-      'https://[username].github.io/my-cdn-test'
+      'https://cdn.jsdelivr.net/gh/azcloud68/my-cdn-test@main',
+      'https://azcloud68.github.io/my-cdn-test'
     ];
     this.currentCDN = 0;
     this.stats = {
