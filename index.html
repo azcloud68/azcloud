@@ -1,16 +1,17 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>CDN Test</title>
+  <title>CDN Test - Fixed Version</title>
   <script src="cdn-loader.js"></script>
   <style>
     body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
-    img { max-width: 100%; margin: 10px 0; border: 1px solid #ddd; }
+    img { max-width: 100%; margin: 10px 0; border: 1px solid #ddd; display: block; }
     .stats { background: #f5f5f5; padding: 15px; margin: 20px 0; }
+    .error { color: red; }
   </style>
 </head>
 <body>
-  <h1>CDN Load Balancer Test</h1>
+  <h1>CDN Load Balancer Test - Fixed</h1>
   
   <div id="images">
     <h2>Test Images:</h2>
@@ -21,19 +22,32 @@
   <div class="stats">
     <h3>Current Stats</h3>
     <p id="stats-display">Loading stats...</p>
+    <p id="error-message" class="error"></p>
     <a href="stats.html">View Detailed Stats</a>
   </div>
 
   <script>
-    // Load ảnh và hiển thị
-    async function loadImages() {
-      document.getElementById('test1').src = await cdn.getImage('/images/test1.jpg');
-      document.getElementById('test2').src = await cdn.getImage('/images/test2.jpg');
-      
-      // Hiển thị thống kê
-      updateStatsDisplay();
+    // Khởi tạo CDN với username GitHub của bạn
+    const cdn = new CDNBalancer('azcloud68');
+    
+    // Hiển thị ảnh
+    async function loadImage(elementId, imagePath) {
+      try {
+        const imgElement = document.getElementById(elementId);
+        const imgUrl = await cdn.getImage(imagePath);
+        
+        // Thêm timestamp để tránh cache
+        imgElement.src = `${imgUrl}?t=${Date.now()}`;
+        imgElement.onerror = () => {
+          document.getElementById('error-message').textContent = 
+            `Failed to load ${imagePath} from CDN`;
+        };
+      } catch (error) {
+        console.error('Error loading image:', error);
+      }
     }
     
+    // Cập nhật thống kê
     function updateStatsDisplay() {
       const stats = cdn.getStats();
       document.getElementById('stats-display').innerHTML = `
@@ -43,11 +57,18 @@
       `;
     }
     
-    // Cập nhật thống kê mỗi 5 giây
-    setInterval(updateStatsDisplay, 5000);
+    // Load tất cả ảnh
+    async function loadAllImages() {
+      await loadImage('test1', '/images/test1.jpg');
+      await loadImage('test2', '/images/test2.jpg');
+      updateStatsDisplay();
+    }
     
-    // Khởi động
-    loadImages();
+    // Cập nhật thống kê mỗi 3 giây
+    setInterval(updateStatsDisplay, 3000);
+    
+    // Bắt đầu tải ảnh
+    loadAllImages();
   </script>
 </body>
 </html>
