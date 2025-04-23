@@ -1,0 +1,23 @@
+{
+  "repositories": [
+    {
+      "name": "main-images",
+      "user": "azcloud68",
+      "repo": "my-cdn-test",
+      "branch": "main",
+      "path": "/images"
+    },
+    {
+      "name": "backup-1",
+      "user": "azcloud68",
+      "repo": "cdn-backup-1",
+      "branch": "master",
+      "path": "/assets"
+    }
+  ],
+  "imageMap": {
+    "test1": "product/001.jpg",
+    "test2": "product/002.jpg",
+    "banner": "marketing/banner.png"
+  }
+}
