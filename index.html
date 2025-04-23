@@ -1,12 +1,53 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Test GitHub Pages</title>
+  <title>CDN Test</title>
+  <script src="cdn-loader.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+    img { max-width: 100%; margin: 10px 0; border: 1px solid #ddd; }
+    .stats { background: #f5f5f5; padding: 15px; margin: 20px 0; }
+  </style>
 </head>
 <body>
-    <h1>Website đã hoạt động!</h1>
-    <p>Chúc mừng! GitHub Pages của bạn đã được cài đặt thành công. 1221.</p>
+  <h1>CDN Load Balancer Test</h1>
+  
+  <div id="images">
+    <h2>Test Images:</h2>
+    <img id="test1" alt="Test Image 1">
+    <img id="test2" alt="Test Image 2">
+  </div>
+  
+  <div class="stats">
+    <h3>Current Stats</h3>
+    <p id="stats-display">Loading stats...</p>
+    <a href="stats.html">View Detailed Stats</a>
+  </div>
+
+  <script>
+    // Load ảnh và hiển thị
+    async function loadImages() {
+      document.getElementById('test1').src = await cdn.getImage('/images/test1.jpg');
+      document.getElementById('test2').src = await cdn.getImage('/images/test2.jpg');
+      
+      // Hiển thị thống kê
+      updateStatsDisplay();
+    }
+    
+    function updateStatsDisplay() {
+      const stats = cdn.getStats();
+      document.getElementById('stats-display').innerHTML = `
+        jsDelivr: ${stats.jsdelivr} requests<br>
+        GitHub: ${stats.github} requests<br>
+        Errors: ${stats.errors}
+      `;
+    }
+    
+    // Cập nhật thống kê mỗi 5 giây
+    setInterval(updateStatsDisplay, 5000);
+    
+    // Khởi động
+    loadImages();
+  </script>
 </body>
 </html>
