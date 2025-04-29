@@ -1,6 +1,13 @@
 <!DOCTYPE html>
 <html>
 <head>
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js')
+      .then(registration => console.log('Service Worker đã đăng ký thành công!'))
+      .catch(error => console.log('Đăng ký Service Worker thất bại:', error));
+  }
+</script>  
   <title>Advanced CDN System</title>
   <script src="cdn-loader.js"></script>
   <style>
