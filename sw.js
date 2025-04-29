@@ -1,6 +1,6 @@
 const CACHE_NAME = 'azcloud-proxy-cache';
 const JS_DELIVR_PREFIX = 'https://cdn.jsdelivr.net/gh/';
-const SECRET_KEY = "a3f1c7e08f2540a1b93ed89c5db37a46cdb297db2f4f9cb8e23734c9a6fd1c55"; // Key phải giống trong encrypt-whitelist.js
+const SECRET_KEY = "a3f1c7e08f2540a1b93ed89c5db37a46cdb297db2f4f9cb8e23734c9a6fd1c55";
 
 let ALLOWED_REPOS = [];
 
