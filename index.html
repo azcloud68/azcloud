@@ -1,123 +1,20 @@
 <!DOCTYPE html>
 <html>
 <head>
-<script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js')
-      .then(registration => console.log('Service Worker đã đăng ký thành công!'))
-      .catch(error => console.log('Đăng ký Service Worker thất bại:', error));
-  }
-</script>  
-  <title>Advanced CDN System</title>
-  <script src="cdn-loader.js"></script>
-  <style>
-    /* CSS styles... */
-    .source-indicator {
-      font-size: 0.8em;
-      padding: 2px 6px;
-      border-radius: 3px;
-      background: #e0e0e0;
+  <title>AZCloud Proxy</title>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+        .then(reg => console.log('Service Worker đã đăng ký!'))
+        .catch(err => console.error('Lỗi đăng ký:', err));
     }
-    .jsdelivr { background: #e3f2fd; color: #0d47a1; }
-    .github { background: #f5f5f5; color: #212121; }
-  </style>
+  </script>
 </head>
 <body>
-  <h1>Multi-Source CDN Load Balancer</h1>
+  <h1>Proxy Service</h1>
   
-  <div id="controls">
-    <button id="load-images">Load Images</button>
-    <button id="clear-cache">Clear Cache</button>
-    <div id="config-status">Loading configuration...</div>
-  </div>
-
-  <div id="image-container"></div>
-
-  <div class="stats">
-    <h3>Performance Statistics</h3>
-    <pre id="stats-display"></pre>
-    <div id="error-message" class="error"></div>
-  </div>
-
-  <script>
-    // Khởi tạo hệ thống
-    const cdn = new MultiCDN('cdn-config.json');
-    const imageKeys = ['test1', 'test2', 'banner'];
-    let isLoading = false;
-
-    // Hiển thị ảnh
-    async function loadImage(key) {
-      const container = document.createElement('div');
-      container.className = 'image-card';
-      container.innerHTML = `
-        <h3>${key} <span id="${key}-source" class="source-indicator">...</span></h3>
-        <img id="${key}-img" loading="lazy" alt="${key}">
-        <div id="${key}-status" class="status">Pending</div>
-      `;
-      document.getElementById('image-container').appendChild(container);
-
-      try {
-        const startTime = performance.now();
-        const imgUrl = await cdn.getImage(key);
-        const loadTime = performance.now() - startTime;
-
-        const imgElement = document.getElementById(`${key}-img`);
-        imgElement.src = imgUrl;
-        
-        const sourceElement = document.getElementById(`${key}-source`);
-        sourceElement.textContent = imgUrl.includes('jsdelivr') ? 'jsDelivr' : 'GitHub';
-        sourceElement.classList.add(imgUrl.includes('jsdelivr') ? 'jsdelivr' : 'github');
-        
-        document.getElementById(`${key}-status`).textContent = 
-          `Loaded in ${loadTime.toFixed(2)}ms | ${new Date().toLocaleTimeString()}`;
-      } catch (error) {
-        document.getElementById(`${key}-status`).textContent = `Error: ${error.message}`;
-        document.getElementById(`${key}-img`).src = 'https://via.placeholder.com/300x200?text=Load+Failed';
-        document.getElementById(`${key}-source`).textContent = 'Failed';
-      }
-    }
-
-    // Cập nhật thống kê
-    function updateStats() {
-      const stats = cdn.getStats();
-      document.getElementById('stats-display').innerHTML = JSON.stringify(stats, null, 2);
-    }
-
-    // Tải tất cả ảnh
-    async function loadAllImages() {
-      if (isLoading) return;
-      
-      isLoading = true;
-      document.getElementById('load-images').disabled = true;
-      document.getElementById('image-container').innerHTML = '';
-      
-      try {
-        for (const key of imageKeys) {
-          await loadImage(key);
-          updateStats();
-        }
-      } finally {
-        isLoading = false;
-        document.getElementById('load-images').disabled = false;
-      }
-    }
-
-    // Event listeners
-    document.getElementById('load-images').addEventListener('click', loadAllImages);
-    document.getElementById('clear-cache').addEventListener('click', () => {
-      cdn.clearCache();
-      updateStats();
-      alert('Cache cleared!');
-    });
-
-    // Tự động tải khi config sẵn sàng
-    const checkConfig = setInterval(() => {
-      if (cdn.config) {
-        clearInterval(checkConfig);
-        document.getElementById('config-status').textContent = 'Configuration loaded';
-        loadAllImages();
-      }
-    }, 500);
-  </script>
+  <!-- Ví dụ sử dụng -->
+  <img src="/gh/azcloud68/my-cdn-test@main/test.jpg" 
+       alt="Ảnh từ repo được phép">
 </body>
 </html>
