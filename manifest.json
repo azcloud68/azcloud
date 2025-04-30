@@ -1,0 +1,10 @@
+{
+  "name": "azcloud CDN Proxy",
+  "short_name": "azCDN",
+  "start_url": "/",
+  "display": "standalone",
+  "scope": "/",
+  "background_color": "#ffffff",
+  "description": "Proxy nội dung jsDelivr qua azcloud.sbs",
+  "theme_color": "#007bff"
+}
