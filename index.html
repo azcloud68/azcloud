@@ -3,18 +3,34 @@
 <head>
   <title>AZCloud Proxy</title>
   <script>
+    // Đăng ký Service Worker
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js')
-        .then(reg => console.log('Service Worker đã đăng ký!'))
-        .catch(err => console.error('Lỗi đăng ký:', err));
+        .then(reg => console.log('SW registered:', reg))
+        .catch(err => console.error('SW failed:', err));
+    }
+
+    // Test proxy
+    async function testProxy() {
+      const url = '/gh/azcloud68/my-cdn-test@main/test.jpg';
+      try {
+        const res = await fetch(url);
+        if (res.ok) {
+          const img = document.getElementById('test-img');
+          img.src = url;
+          console.log('✅ Proxy thành công!');
+        } else {
+          console.error('❌ Lỗi:', res.status);
+        }
+      } catch (error) {
+        console.error('❌ Fetch error:', error);
+      }
     }
   </script>
 </head>
 <body>
-  <h1>Proxy Service</h1>
-  
-  <!-- Ví dụ sử dụng -->
-  <img src="/gh/azcloud68/my-cdn-test@main/test.jpg" 
-       alt="Ảnh từ repo được phép">
+  <h1>AZCloud Proxy Test</h1>
+  <button onclick="testProxy()">Test Proxy</button>
+  <img id="test-img" style="max-width: 300px; display: block; margin-top: 20px;">
 </body>
 </html>
