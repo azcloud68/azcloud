@@ -4,7 +4,7 @@ const JSDELIVR_PREFIX = 'https://cdn.jsdelivr.net/gh/';
 // Danh sách repo được mã hóa base64
 const ALLOWED_REPOS_BASE64 = [
   'YXpjbG91ZDY4L215LWNkbi10ZXN0',
-  'YWIxMjIxL25ldzE='
+  'YXoxMjIxL25ldzE='
 ];
 
 function isAllowed(user, repo) {
