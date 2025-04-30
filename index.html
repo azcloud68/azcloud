@@ -2,17 +2,32 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>azcloud CDN Proxy</title>
-  <link rel="manifest" href="manifest.json">
+  <title>azcloud.sbs CDN Proxy</title>
+  <link rel="manifest" href="/manifest.json">
 </head>
 <body>
-  <h1>azcloud.sbs CDN Proxy</h1>
-  <p>Dùng Service Worker để proxy nội dung từ jsDelivr.</p>
+  <h1>Đang khởi tạo proxy CDN...</h1>
+  <p>Vui lòng chờ trong giây lát...</p>
+
   <script>
+    const next = new URLSearchParams(location.search).get('next');
+
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js')
-        .then(() => console.log('✅ Service Worker registered'))
-        .catch(err => console.error('❌ SW registration failed:', err));
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(() => {
+        console.log('✅ SW registered');
+        return navigator.serviceWorker.ready;
+      }).then(() => {
+        // Nếu có ?next=gh/... thì redirect lại về link gốc
+        if (next) {
+          location.replace('/' + next);
+        }
+      }).catch(err => {
+        console.error('❌ SW failed:', err);
+        if (next) location.replace('/' + next);
+      });
+    } else {
+      // Trình duyệt không hỗ trợ SW
+      if (next) location.replace('/' + next);
     }
   </script>
 </body>
