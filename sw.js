@@ -1,10 +1,9 @@
-const CDN_PREFIX = '/gh/'; // Đường dẫn tùy chỉnh
+const CDN_PREFIX = '/gh/';
 const JSDELIVR_PREFIX = 'https://cdn.jsdelivr.net/gh/';
 
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
-  // Chỉ xử lý nếu URL có dạng /gh/
   if (url.pathname.startsWith(CDN_PREFIX)) {
     const cdnPath = url.pathname.replace(CDN_PREFIX, '');
     const jsDelivrURL = JSDELIVR_PREFIX + cdnPath;
