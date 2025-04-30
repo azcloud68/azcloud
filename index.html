@@ -1,32 +1,19 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Proxy Test</title>
-  <script>
-    // Đăng ký Service Worker
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js', { scope: '/' })
-        .then(reg => console.log('SW registered'))
-        .catch(err => console.error('SW error:', err));
-    }
-    
-    // Hàm test proxy
-    function testProxy() {
-      const testUrl = '/gh/azcloud68/my-cdn-test@main/images/test1.jpg';
-      fetch(testUrl)
-        .then(response => {
-          console.log('Status:', response.status);
-          if (response.ok) {
-            document.getElementById('test-img').src = testUrl;
-          }
-        })
-        .catch(err => console.error('Fetch error:', err));
-    }
-  </script>
+  <meta charset="UTF-8">
+  <title>azcloud CDN Proxy</title>
+  <link rel="manifest" href="manifest.json">
 </head>
 <body>
-  <h1>Proxy Test</h1>
-  <button onclick="testProxy()">Test Proxy</button>
-  <img id="test-img" style="max-width: 300px; display: block; margin-top: 20px;">
+  <h1>azcloud.sbs CDN Proxy</h1>
+  <p>Dùng Service Worker để proxy nội dung từ jsDelivr.</p>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+        .then(() => console.log('✅ Service Worker registered'))
+        .catch(err => console.error('❌ SW registration failed:', err));
+    }
+  </script>
 </body>
 </html>
