@@ -1,22 +1,32 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>AZCloud Proxy</title>
+  <title>Proxy Test</title>
   <script>
     // Đăng ký Service Worker
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js')
-        .then(reg => console.log('Service Worker registered!', reg))
-        .catch(err => console.error('SW registration failed:', err));
+      navigator.serviceWorker.register('/sw.js', { scope: '/' })
+        .then(reg => console.log('SW registered'))
+        .catch(err => console.error('SW error:', err));
+    }
+    
+    // Hàm test proxy
+    function testProxy() {
+      const testUrl = '/gh/azcloud68/my-cdn-test@main/images/test1.jpg';
+      fetch(testUrl)
+        .then(response => {
+          console.log('Status:', response.status);
+          if (response.ok) {
+            document.getElementById('test-img').src = testUrl;
+          }
+        })
+        .catch(err => console.error('Fetch error:', err));
     }
   </script>
 </head>
 <body>
-  <h1>AZCloud Proxy Service</h1>
-  <p>Proxy images from allowed GitHub repos via jsDelivr.</p>
-  
-  <!-- Ví dụ sử dụng -->
-  <img src="/gh/azcloud68/my-cdn-test@main/images/test1.jpg" alt="Test Image">
-  <img src="/gh/az1221/new1/main/Tyrese%20Gibson.jpg" alt="Tyrese Gibson">
+  <h1>Proxy Test</h1>
+  <button onclick="testProxy()">Test Proxy</button>
+  <img id="test-img" style="max-width: 300px; display: block; margin-top: 20px;">
 </body>
 </html>
