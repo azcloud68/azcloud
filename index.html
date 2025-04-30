@@ -4,9 +4,31 @@
   <meta charset="UTF-8">
   <title>azCDN Proxy</title>
   <link rel="manifest" href="/manifest.json">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 50px;
+    }
+    img {
+      max-width: 400px;
+      margin: 20px auto;
+      display: block;
+      border: 1px solid #ccc;
+      box-shadow: 2px 2px 6px rgba(0,0,0,0.1);
+    }
+    h2 {
+      color: #007bff;
+    }
+  </style>
 </head>
 <body>
   <h2>Đang khởi tạo proxy CDN...</h2>
+  <p>Nếu hình ảnh bên dưới hiển thị, proxy đang hoạt động:</p>
+
+  <!-- Link test qua Service Worker proxy -->
+  <img src="/gh/azcloud68/my-cdn-test@main/images/test1.jpg" alt="Test Image 1">
+  <img src="/gh/az1221/new1@main/test.jpg" alt="Test Image 2">
 
   <script>
     const next = new URLSearchParams(location.search).get('next');
@@ -15,18 +37,19 @@
       navigator.serviceWorker.register('/sw.js', { scope: '/' })
         .then(() => navigator.serviceWorker.ready)
         .then(() => {
+          console.log('Service Worker đã sẵn sàng.');
           if (next) {
-            // Delay 1s để chắc chắn SW đã kiểm soát
             setTimeout(() => {
               location.replace('/' + next);
             }, 1000);
           }
         })
         .catch(err => {
-          console.error('Service Worker error:', err);
+          console.error('Lỗi Service Worker:', err);
           if (next) location.replace('/' + next);
         });
     } else {
+      console.warn('Trình duyệt không hỗ trợ Service Worker.');
       if (next) location.replace('/' + next);
     }
   </script>
