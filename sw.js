@@ -1,7 +1,7 @@
 // sw.js
 const CDN_PREFIX = '/gh/';
 const JSDELIVR_PREFIX = 'https://cdn.jsdelivr.net/gh/';
-const ALLOWED_REPOS = ['azcloud68/my-cdn-test', 'az1221/new1'];
+const ALLOWED_USERS = ['azcloud68', 'az1221']; // Chỉ cần list tài khoản GitHub
 
 self.addEventListener('install', (event) => {
   self.skipWaiting(); // Kích hoạt ngay lập tức
@@ -17,10 +17,14 @@ self.addEventListener('fetch', (event) => {
   // Xử lý ảnh CDN
   if (url.pathname.startsWith(CDN_PREFIX)) {
     const pathParts = url.pathname.replace(CDN_PREFIX, '').split('/');
-    const repoPath = `${pathParts[0]}/${pathParts[1].split('@')[0]}`;
+    const githubUser = pathParts[0]; // Lấy tên tài khoản GitHub
     
-    if (ALLOWED_REPOS.some(repo => repoPath.startsWith(repo))) {
+    if (ALLOWED_USERS.includes(githubUser)) {
       return event.respondWith(handleImageFetch(event));
+    } else {
+      return event.respondWith(new Response('Tài khoản GitHub không được phép', { 
+        status: 403 
+      }));
     }
   }
   
@@ -77,7 +81,7 @@ function injectRetryScript(html) {
       // Hàm retry cho ảnh
       function retryImages() {
         document.querySelectorAll('img').forEach(img => {
-          if (img.src.startsWith('${CDN_PREFIX}') {
+          if (img.src.startsWith('${CDN_PREFIX}')) {
             img.onerror = function() {
               var originalSrc = this.src;
               this.src = '';
