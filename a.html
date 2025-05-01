@@ -20,15 +20,34 @@
   <img src="/gh/az1221/new1@main/test.jpg" alt="Ảnh test 2">
 
   <script>
+    // Đăng ký SW và sau đó kiểm tra lỗi ảnh
     const next = new URLSearchParams(location.search).get('next');
+
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js', { scope: '/' })
         .then(() => navigator.serviceWorker.ready)
         .then(() => {
-          if (next) setTimeout(() => location.replace('/' + next), 1000);
+          // Sau khi SW đã sẵn sàng, kiểm tra ảnh lỗi
+          document.querySelectorAll('img').forEach(img => {
+            if (!img.complete || img.naturalWidth === 0) {
+              const originalSrc = img.src;
+              img.onerror = () => {
+                console.warn('Ảnh lỗi, sẽ thử lại:', originalSrc);
+                setTimeout(() => {
+                  img.src = originalSrc + '?retry=' + Date.now();
+                }, 300);
+              };
+              // Gắn lại src để kích hoạt onerror nếu ảnh lỗi
+              img.src = originalSrc;
+            }
+          });
+
+          if (next) {
+            setTimeout(() => location.replace('/' + next), 1000);
+          }
         })
         .catch(err => {
-          console.error('Service Worker đăng ký lỗi:', err);
+          console.error('Service Worker lỗi:', err);
           if (next) location.replace('/' + next);
         });
     } else {
@@ -36,7 +55,4 @@
     }
   </script>
 </body>
-  <!-- Cuối body -->
-<script src="/auto-reload-images.js"></script>
-
 </html>
