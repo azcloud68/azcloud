@@ -1,189 +1,87 @@
-// sw.js - Phiên bản đa trình duyệt tối ưu
+// sw.js - Phiên bản ổn định đa trình duyệt
 const CDN_PREFIX = '/gh/';
 const JSDELIVR_PREFIX = 'https://cdn.jsdelivr.net/gh/';
 const ALLOWED_USERS = ['azcloud68', 'az1221'];
-const CACHE_NAME = 'img-cache-v2';
-
-// Danh sách trình duyệt cần xử lý đặc biệt
-const BROWSER_SPECIAL_HANDLING = {
-  firefox: {
-    cacheOption: 'no-store',
-    referrerPolicy: 'no-referrer'
-  },
-  safari: {
-    cacheOption: 'reload'
-  }
-};
+const CACHE_NAME = 'img-cache-v3';
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll([])) // Precaching nếu cần
-      .then(() => self.skipWaiting())
-  );
-  console.log('[SW] Installed');
+  self.skipWaiting();
+  console.log('[SW] Đã cài đặt');
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    Promise.all([
-      clients.claim(),
-      clearOldCaches()
-    ])
-  );
-  console.log('[SW] Activated');
+  event.waitUntil(clients.claim());
+  console.log('[SW] Đã kích hoạt');
 });
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
-  
+
   // Xử lý ảnh CDN
   if (url.pathname.startsWith(CDN_PREFIX)) {
-    return handleCDNRequest(event);
+    const user = url.pathname.split('/')[2]; // Lấy username từ URL
+    if (ALLOWED_USERS.includes(user)) {
+      event.respondWith(handleImageRequest(event));
+      return;
+    }
   }
-  
-  // Inject retry script cho HTML
+
+  // Xử lý trang HTML
   if (event.request.mode === 'navigate') {
-    return handleHTMLRequest(event);
+    event.respondWith(
+      fetch(event.request)
+        .then(response => addRetryScriptToHTML(response))
+        .catch(() => fetch(event.request))
+    );
   }
 });
 
-async function handleCDNRequest(event) {
-  const url = new URL(event.request.url);
-  const pathParts = url.pathname.replace(CDN_PREFIX, '').split('/');
-  const githubUser = pathParts[0];
-  
-  if (!ALLOWED_USERS.includes(githubUser)) {
-    return event.respondWith(new Response('Access Denied', { status: 403 }));
-  }
+async function handleImageRequest(event) {
+  const requestUrl = new URL(event.request.url);
+  const cdnPath = requestUrl.pathname.replace(CDN_PREFIX, '');
+  const jsDelivrUrl = JSDELIVR_PREFIX + cdnPath;
 
-  const browser = detectBrowser();
-  const cacheStrategy = getCacheStrategy(browser);
-  
+  // Chiến lược: Mạng trước, cache sau
   try {
-    const response = await applyCacheStrategy(event, cacheStrategy);
-    return event.respondWith(response);
-  } catch (error) {
-    console.error('[SW] Fetch failed:', error);
-    return event.respondWith(fallbackResponse(event.request));
-  }
-}
+    // Thử tải từ mạng trước
+    const networkResponse = await fetch(jsDelivrUrl, {
+      cache: 'no-cache',
+      referrerPolicy: 'no-referrer'
+    });
 
-async function applyCacheStrategy(event, strategy) {
-  const request = event.request;
-  const cache = await caches.open(CACHE_NAME);
-  
-  // 1. Thử lấy từ cache trước
-  if (strategy.cacheFirst) {
-    const cached = await cache.match(request);
-    if (cached) return cached;
-  }
-  
-  // 2. Thử tải từ mạng
-  try {
-    const fetchOptions = {
-      cache: strategy.cacheOption,
-      referrerPolicy: strategy.referrerPolicy
-    };
-    
-    const networkResponse = await fetch(request.url, fetchOptions);
-    
-    // Cache response nếu thành công
     if (networkResponse.ok) {
-      const clone = networkResponse.clone();
-      event.waitUntil(cache.put(request, clone));
+      // Lưu vào cache cho lần sau
+      const cache = await caches.open(CACHE_NAME);
+      await cache.put(event.request, networkResponse.clone());
+      return networkResponse;
     }
-    
-    return networkResponse;
   } catch (error) {
-    // 3. Fallback: thử lấy từ cache nếu có
-    const cached = await cache.match(request);
-    if (cached) return cached;
-    
-    // 4. Cuối cùng: thử retry
-    return retryFetch(request.url, strategy);
+    console.log('[SW] Lỗi tải ảnh từ mạng:', error);
   }
-}
 
-function getCacheStrategy(browser) {
-  // Chiến lược mặc định
-  const defaultStrategy = {
-    cacheFirst: true,
-    cacheOption: 'default',
-    referrerPolicy: 'no-referrer-when-downgrade',
-    maxRetries: 3
-  };
-  
-  // Áp dụng chiến lược riêng cho từng trình duyệt
-  return {
-    ...defaultStrategy,
-    ...(BROWSER_SPECIAL_HANDLING[browser] || {})
-  };
-}
-
-async function retryFetch(url, strategy, attempt = 1) {
-  try {
-    const response = await fetch(url, {
-      cache: strategy.cacheOption,
-      referrerPolicy: strategy.referrerPolicy
-    });
-    
-    if (response.ok) return response;
-    throw new Error('Response not OK');
-  } catch (error) {
-    if (attempt < strategy.maxRetries) {
-      await new Promise(resolve => setTimeout(resolve, 300 * attempt));
-      return retryFetch(url, strategy, attempt + 1);
-    }
-    throw error;
+  // Nếu mạng thất bại, thử từ cache
+  const cachedResponse = await caches.match(event.request);
+  if (cachedResponse) {
+    return cachedResponse;
   }
+
+  // Nếu không có trong cache, trả về ảnh placeholder
+  return createPlaceholderResponse();
 }
 
-function detectBrowser() {
-  const userAgent = navigator.userAgent.toLowerCase();
-  
-  if (userAgent.includes('firefox')) return 'firefox';
-  if (userAgent.includes('safari') && !userAgent.includes('chrome')) return 'safari';
-  if (userAgent.includes('edg')) return 'edge';
-  return 'chrome';
-}
-
-async function clearOldCaches() {
-  const keys = await caches.keys();
-  return Promise.all(
-    keys.map(key => key !== CACHE_NAME && caches.delete(key))
-  );
-}
-
-function fallbackResponse(request) {
-  // Có thể trả về ảnh placeholder hoặc thông báo
-  if (request.headers.get('accept').includes('image')) {
-    return new Response(
-      '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="#eee"/><text x="50" y="50" font-family="Arial" font-size="10" text-anchor="middle" fill="#aaa">Image not available</text></svg>',
-      { headers: { 'Content-Type': 'image/svg+xml' } }
-    );
+async function addRetryScriptToHTML(response) {
+  if (!response.headers.get('content-type')?.includes('text/html')) {
+    return response;
   }
-  return new Response('Resource not available', { status: 404 });
-}
 
-async function handleHTMLRequest(event) {
-  try {
-    const response = await fetch(event.request);
-    
-    if (!response.headers.get('content-type').includes('text/html')) {
-      return response;
-    }
-    
-    const html = await response.text();
-    const modifiedHtml = injectRetryScript(html);
-    
-    return new Response(modifiedHtml, {
-      headers: response.headers
-    });
-  } catch (error) {
-    console.error('[SW] HTML handling failed:', error);
-    return fetch(event.request);
-  }
+  const html = await response.text();
+  const modifiedHtml = injectRetryScript(html);
+
+  return new Response(modifiedHtml, {
+    headers: response.headers,
+    status: response.status,
+    statusText: response.statusText
+  });
 }
 
 function injectRetryScript(html) {
@@ -191,61 +89,60 @@ function injectRetryScript(html) {
     <script>
     (function() {
       function setupImageRetry() {
-        var images = document.querySelectorAll('img[src^="${CDN_PREFIX}"]');
-        
-        images.forEach(function(img) {
-          if (!img.dataset.originalSrc) {
-            img.dataset.originalSrc = img.src;
-            img.loading = 'eager'; // Tối ưu tải ảnh
+        document.querySelectorAll('img').forEach(img => {
+          if (img.src.startsWith('${CDN_PREFIX}')) {
+            // Lưu URL gốc
+            if (!img.dataset.origSrc) {
+              img.dataset.origSrc = img.src;
+            }
+            
+            // Thiết lập retry khi lỗi
+            img.onerror = function() {
+              const self = this;
+              const retryCount = parseInt(self.dataset.retryCount || 0) + 1;
+              
+              if (retryCount > 3) return;
+              
+              self.dataset.retryCount = retryCount;
+              self.src = ''; // Xóa src hiện tại
+              
+              // Thêm timestamp để tránh cache
+              setTimeout(() => {
+                self.src = self.dataset.origSrc + '?retry=' + Date.now();
+              }, 300 * retryCount);
+            };
           }
-          
-          img.onerror = function() {
-            var self = this;
-            var retryCount = parseInt(self.dataset.retryCount || 0) + 1;
-            self.dataset.retryCount = retryCount;
-            
-            if (retryCount > 3) return;
-            
-            // Dùng placeholder trong lúc chờ retry
-            self.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiNlZWUiLz48L3N2Zz4=';
-            
-            setTimeout(function() {
-              self.src = self.dataset.originalSrc + (retryCount > 1 ? '&retry=' + Date.now() : '');
-            }, 300 * retryCount);
-          };
         });
       }
-      
-      // Hỗ trợ đa trình duyệt
-      function onReady() {
-        try {
-          setupImageRetry();
-          
-          // Kiểm tra SW cho trình duyệt WebKit (Safari)
-          if ('serviceWorker' in navigator && /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
-            navigator.serviceWorker.ready.then(function() {
-              setTimeout(setupImageRetry, 500);
-            });
-          }
-        } catch(e) { console.error('Retry init error:', e); }
-      }
-      
-      if (document.readyState !== 'loading') {
-        onReady();
+
+      // Chạy khi DOM sẵn sàng
+      if (document.readyState === 'complete') {
+        setupImageRetry();
       } else {
-        document.addEventListener('DOMContentLoaded', onReady);
-      }
-      
-      // Polyfill cho các trình duyệt cũ
-      if (!('loading' in HTMLImageElement.prototype)) {
-        Object.defineProperty(HTMLImageElement.prototype, 'loading', {
-          get: function() { return this.getAttribute('loading'); },
-          set: function(value) { this.setAttribute('loading', value); }
-        });
+        window.addEventListener('load', setupImageRetry);
+        document.addEventListener('DOMContentLoaded', setupImageRetry);
       }
     })();
     </script>
   `;
-  
+
   return html.replace('</body>', retryScript + '</body>');
+}
+
+function createPlaceholderResponse() {
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">
+      <rect width="100" height="100" fill="#f5f5f5"/>
+      <text x="50" y="50" font-family="Arial" font-size="10" text-anchor="middle" fill="#ccc">
+        Đang tải ảnh...
+      </text>
+    </svg>
+  `;
+  
+  return new Response(svg, {
+    headers: {
+      'Content-Type': 'image/svg+xml',
+      'Cache-Control': 'no-store'
+    }
+  });
 }
