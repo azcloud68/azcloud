@@ -2,48 +2,37 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <title>CDN Proxy Test</title>
+  <title>Test trì hoãn ảnh đến khi SW sẵn sàng</title>
   <link rel="manifest" href="/manifest.json">
   <style>
-    body { font-family: sans-serif; padding: 20px; }
-    img { max-width: 100%; margin-bottom: 20px; border: 1px solid #ccc; display: none; }
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    img { max-width: 100%; margin-bottom: 20px; border: 1px solid #ccc; }
   </style>
 </head>
 <body>
-  <h2>Kiểm tra tải ảnh qua Service Worker Proxy</h2>
-  <p>Sau khi Service Worker kiểm soát, ảnh mới bắt đầu tải.</p>
+  <h2>Test Proxy CDN qua Service Worker</h2>
+  <p>Ảnh sẽ chỉ được tải khi Service Worker đã sẵn sàng.</p>
 
-  <h3>Ảnh từ repo 1 (azcloud68/my-cdn-test)</h3>
+  <h3>Ảnh từ repo 1</h3>
   <img data-src="/gh/azcloud68/my-cdn-test@main/images/test1.jpg" alt="Ảnh test 1">
 
-  <h3>Ảnh từ repo 2 (az1221/new1)</h3>
+  <h3>Ảnh từ repo 2</h3>
   <img data-src="/gh/az1221/new1@main/test.jpg" alt="Ảnh test 2">
 
+  <!-- Tự động khởi tạo Service Worker -->
   <script>
-    const next = new URLSearchParams(location.search).get('next');
-
-    function loadImages() {
-      document.querySelectorAll('img[data-src]').forEach(img => {
-        img.src = img.getAttribute('data-src');
-        img.style.display = 'block';
-      });
-    }
-
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js', { scope: '/' })
         .then(() => navigator.serviceWorker.ready)
         .then(() => {
-          loadImages(); // Chỉ tải ảnh sau khi SW sẵn sàng
-          if (next) setTimeout(() => location.replace('/' + next), 1000);
+          // Sau khi SW sẵn sàng, phục hồi ảnh
+          setTimeout(() => {
+            document.querySelectorAll('img[data-src]').forEach(img => {
+              img.src = img.dataset.src;
+            });
+          }, 100); // Delay nhẹ cho chắc chắn
         })
-        .catch(err => {
-          console.error('Service Worker lỗi:', err);
-          loadImages(); // Nếu SW lỗi vẫn tải ảnh
-          if (next) location.replace('/' + next);
-        });
-    } else {
-      loadImages(); // Không hỗ trợ SW vẫn hiển thị ảnh
-      if (next) location.replace('/' + next);
+        .catch(err => console.error('SW register error:', err));
     }
   </script>
 </body>
