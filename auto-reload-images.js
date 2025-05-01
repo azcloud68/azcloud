@@ -1,25 +1,14 @@
-(() => {
-  const isFirstLoad = !localStorage.getItem('img_retry_once');
-
-  if (isFirstLoad) {
-    window.addEventListener('load', () => {
-      const imgs = document.querySelectorAll('img');
-      imgs.forEach(img => {
-        let retried = false;
-
-        img.onerror = () => {
-          if (!retried) {
-            retried = true;
-            setTimeout(() => {
-              const oldSrc = img.src;
-              img.src = '';
-              img.src = oldSrc;
-            }, 300);
-          }
-        };
-      });
-
-      localStorage.setItem('img_retry_once', '1');
-    });
-  }
-})();
+// Tự động reload ảnh bị lỗi sau khi SW sẵn sàng (chỉ reload 1 lần)
+navigator.serviceWorker.ready.then(() => {
+  document.querySelectorAll('img').forEach(img => {
+    if (!img.complete || img.naturalWidth === 0) {
+      const src = img.src;
+      img.onerror = () => {
+        console.log('[CDN-Proxy] Ảnh lỗi, thử tải lại:', src);
+        setTimeout(() => img.src = src + '?retry=' + Date.now(), 300); // tránh cache
+      };
+      // Gắn lại để kích hoạt onerror nếu ảnh đã fail
+      img.src = src;
+    }
+  });
+});
