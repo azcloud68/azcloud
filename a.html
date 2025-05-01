@@ -7,32 +7,56 @@
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; }
     img { max-width: 100%; margin-bottom: 20px; border: 1px solid #ccc; }
+    .loading { background: #f0f0f0; min-height: 100px; }
   </style>
 </head>
 <body>
-  <h2> 1221 Test Proxy CDN qua Service Worker</h2>
+  <h2>1221 Test Proxy CDN qua Service Worker</h2>
   <p>Ảnh sẽ chỉ được tải khi Service Worker đã sẵn sàng.</p>
 
   <h3>Ảnh từ repo 1</h3>
-  <img data-src="/gh/azcloud68/my-cdn-test@main/images/test1.jpg" alt="Ảnh test 1">
+  <img data-src="/gh/azcloud68/my-cdn-test@main/images/test1.jpg" 
+       src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E" 
+       alt="Ảnh test 1" 
+       onerror="retryImage(this)">
 
   <h3>Ảnh từ repo 2</h3>
-  <img data-src="/gh/az1221/new1@main/test.jpg" alt="Ảnh test 2">
+  <img data-src="/gh/az1221/new1@main/test.jpg" 
+       src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E" 
+       alt="Ảnh test 2" 
+       onerror="retryImage(this)">
 
-  <!-- Tự động khởi tạo Service Worker -->
   <script>
+    // Hàm thử lại khi ảnh lỗi
+    function retryImage(img) {
+      setTimeout(() => {
+        img.src = img.dataset.src;
+      }, 300);
+    }
+
+    // Kiểm tra SW đã sẵn sàng chưa
+    function loadImagesWhenReady() {
+      if (navigator.serviceWorker.controller) {
+        document.querySelectorAll('img[data-src]').forEach(img => {
+          img.src = img.dataset.src;
+        });
+      } else {
+        setTimeout(loadImagesWhenReady, 100);
+      }
+    }
+
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js', { scope: '/' })
-        .then(() => navigator.serviceWorker.ready)
         .then(() => {
-          // Sau khi SW sẵn sàng, phục hồi ảnh
-          setTimeout(() => {
-            document.querySelectorAll('img[data-src]').forEach(img => {
-              img.src = img.dataset.src;
-            });
-          }, 100); // Delay nhẹ cho chắc chắn
+          // Bắt đầu kiểm tra khi SW sẵn sàng
+          loadImagesWhenReady();
         })
         .catch(err => console.error('SW register error:', err));
+    } else {
+      // Fallback khi trình duyệt không hỗ trợ SW
+      document.querySelectorAll('img[data-src]').forEach(img => {
+        img.src = img.dataset.src;
+      });
     }
   </script>
 </body>
