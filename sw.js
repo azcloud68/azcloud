@@ -1,17 +1,24 @@
-// sw.js - Phiên bản đặc biệt cho UCMobile & Firefox
+// sw.js - Phiên bản hoạt động trên mọi trình duyệt
 const CDN_PREFIX = '/gh/';
 const JSDELIVR_PREFIX = 'https://cdn.jsdelivr.net/gh/';
 const ALLOWED_USERS = ['azcloud68', 'az1221'];
-const CACHE_NAME = 'img-cache-final-v1';
+const CACHE_NAME = 'universal-img-cache-v1';
 
 self.addEventListener('install', (event) => {
-  self.skipWaiting();
-  console.log('[SW] Installation complete');
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => cache.addAll([]))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(clients.claim());
-  console.log('[SW] Now controlling clients');
+  event.waitUntil(
+    Promise.all([
+      clients.claim(),
+      clearOldCaches()
+    ])
+  );
 });
 
 self.addEventListener('fetch', (event) => {
@@ -37,7 +44,7 @@ async function handleImageProxy(event) {
   }
 
   try {
-    const response = await universalFetchHandler(event.request);
+    const response = await universalImageFetch(event.request);
     return event.respondWith(response);
   } catch (error) {
     console.error('[SW] Proxy failed:', error);
@@ -45,52 +52,33 @@ async function handleImageProxy(event) {
   }
 }
 
-async function universalFetchHandler(request) {
-  // Giải pháp đặc biệt cho UCMobile và Firefox
+async function universalImageFetch(request) {
   const newUrl = convertToJsDelivrUrl(request.url);
-  const isFirefox = navigator.userAgent.includes('Firefox');
-  const isUCMobile = navigator.userAgent.includes('UCBrowser');
-
-  const fetchOptions = {
-    method: 'GET',
-    mode: 'cors',
-    cache: 'no-store',
-    referrerPolicy: 'no-referrer',
-    headers: new Headers({
-      'Accept': 'image/*',
-      'X-Requested-With': 'XMLHttpRequest'
-    })
-  };
-
-  // Điều chỉnh options cho từng trình duyệt
-  if (isUCMobile) {
-    fetchOptions.mode = 'no-cors';
-    fetchOptions.headers.delete('X-Requested-With');
-  }
-
-  if (isFirefox) {
-    fetchOptions.integrity = '';
-  }
-
-  // Thử tải trực tiếp từ jsDelivr
+  
+  // Chiến lược: Network First với Cache Fallback
   try {
-    const networkResponse = await fetch(newUrl, fetchOptions);
+    const networkResponse = await fetch(newUrl, {
+      mode: 'cors',
+      cache: 'no-store',
+      referrerPolicy: 'no-referrer',
+      headers: new Headers({
+        'Accept': 'image/*',
+        'X-Requested-With': 'XMLHttpRequest'
+      })
+    });
     
-    if (networkResponse.status === 200) {
-      // Clone response để cache
-      const responseToCache = networkResponse.clone();
-      caches.open(CACHE_NAME).then(cache => cache.put(request, responseToCache));
-      
+    if (networkResponse.ok) {
+      const cache = await caches.open(CACHE_NAME);
+      await cache.put(request, networkResponse.clone());
       return networkResponse;
     }
-    throw new Error(`HTTP ${networkResponse.status}`);
+    throw new Error('Network response not OK');
   } catch (error) {
-    // Thử từ cache nếu mạng thất bại
     const cached = await caches.match(request);
     if (cached) return cached;
     
-    // Cuối cùng: thử phương án dự phòng
-    return backupImageFetch(newUrl);
+    // Fallback cuối cùng: tải trực tiếp không qua proxy
+    return fetch(newUrl, { mode: 'no-cors' });
   }
 }
 
@@ -99,26 +87,11 @@ function convertToJsDelivrUrl(url) {
   return JSDELIVR_PREFIX + path;
 }
 
-async function backupImageFetch(url) {
-  // Phương án đặc biệt khi cả mạng và cache đều fail
-  try {
-    // Thử cách khác để tải ảnh
-    const res = await fetch(url, {
-      mode: 'no-cors',
-      credentials: 'omit',
-      redirect: 'follow'
-    });
-    
-    if (res.ok || res.type === 'opaque') {
-      return new Response(res.body, {
-        status: 200,
-        headers: { 'Content-Type': 'image/jpeg' }
-      });
-    }
-  } catch (e) {
-    console.warn('Backup fetch failed:', e);
-  }
-  return fallbackImage();
+async function clearOldCaches() {
+  const keys = await caches.keys();
+  return Promise.all(
+    keys.map(key => key !== CACHE_NAME && caches.delete(key))
+  );
 }
 
 async function handlePageRequest(event) {
@@ -142,75 +115,61 @@ async function handlePageRequest(event) {
 }
 
 function injectCompatibilityScript(html) {
-  const compatibilityScript = `
+  const retryScript = `
     <script>
-    /* UC & Firefox Special Handler */
-    (function() {
-      function retryFailedImages() {
-        var images = document.querySelectorAll('img[src^="${CDN_PREFIX}"]');
-        
-        images.forEach(function(img) {
-          // Skip if already processed
-          if (img.dataset.proxied) return;
+    /* Universal Image Retry Handler */
+    document.addEventListener('DOMContentLoaded', function() {
+      function setupImageRetry() {
+        document.querySelectorAll('img[src^="${CDN_PREFIX}"]').forEach(img => {
+          if (img.dataset.origSrc) return;
           
-          img.dataset.proxied = 'true';
-          var originalSrc = img.src;
+          img.dataset.origSrc = img.src;
+          img.loading = 'eager';
           
           img.onerror = function() {
-            var self = this;
-            var retry = parseInt(self.dataset.retry || '0') + 1;
+            const self = this;
+            const retryCount = parseInt(self.dataset.retryCount || '0') + 1;
             
-            if (retry > 2) {
-              // Ultimate fallback - direct jsDelivr link
-              self.src = originalSrc.replace('${CDN_PREFIX}', '${JSDELIVR_PREFIX}');
+            if (retryCount > 3) {
+              // Fallback cuối cùng: dùng link trực tiếp
+              self.src = self.dataset.origSrc.replace('${CDN_PREFIX}', '${JSDELIVR_PREFIX}');
               return;
             }
             
-            self.dataset.retry = retry;
-            setTimeout(function() {
-              // Force refresh with cache busting
-              self.src = originalSrc + '?sw-retry=' + Date.now();
-            }, 500 * retry);
+            self.dataset.retryCount = retryCount;
+            setTimeout(() => {
+              self.src = self.dataset.origSrc + '?retry=' + Date.now();
+            }, 500 * retryCount);
           };
         });
       }
       
-      // UC Browser needs special handling
+      // Kiểm tra trình duyệt đặc biệt
       if (/UCBrowser|UCMobile/i.test(navigator.userAgent)) {
-        setTimeout(retryFailedImages, 1000);
-      } 
-      // Firefox needs SW ready check
-      else if (/Firefox/i.test(navigator.userAgent)) {
-        if (navigator.serviceWorker && navigator.serviceWorker.ready) {
-          navigator.serviceWorker.ready.then(retryFailedImages);
+        setTimeout(setupImageRetry, 1000);
+      } else if (/Firefox/i.test(navigator.userAgent)) {
+        if (navigator.serviceWorker?.ready) {
+          navigator.serviceWorker.ready.then(setupImageRetry);
         } else {
-          setTimeout(retryFailedImages, 500);
+          setTimeout(setupImageRetry, 500);
         }
+      } else {
+        setupImageRetry();
       }
-      // Normal browsers
-      else {
-        document.addEventListener('DOMContentLoaded', retryFailedImages);
-      }
-    })();
+    });
     </script>
   `;
   
-  return html.replace('</body>', compatibilityScript + '</body>');
+  return html.replace('</body>', retryScript + '</body>');
 }
 
 function blockedResponse() {
-  return new Response('Access to this resource is not allowed', {
-    status: 403,
-    headers: { 'Content-Type': 'text/plain' }
-  });
+  return new Response('Access denied', { status: 403 });
 }
 
 function fallbackImage() {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="#eee"/><text x="50" y="50" font-family="Arial" font-size="10" text-anchor="middle" fill="#999">Image unavailable</text></svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="#eee"/></svg>`;
   return new Response(svg, {
-    headers: {
-      'Content-Type': 'image/svg+xml',
-      'Cache-Control': 'no-store'
-    }
+    headers: { 'Content-Type': 'image/svg+xml' }
   });
 }
