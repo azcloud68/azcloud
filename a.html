@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Test Reload Ảnh nếu lỗi</title>
+  <style>
+    img {
+      max-width: 300px;
+      margin: 10px;
+      border: 2px solid #ccc;
+    }
+  </style>
+</head>
+<body>
+  <h2>Test tự động tải lại ảnh lỗi (chỉ lần đầu)</h2>
+
+  <p>✅ Ảnh đúng:</p>
+  <img src="https://azcloud.sbs/gh/azcloud68/my-cdn-test@main/images/test1.jpg" alt="ảnh ok">
+
+  <p>❌ Ảnh lỗi (sẽ reload):</p>
+  <img src="https://azcloud.sbs/gh/az1221/new1@main/sai-ten-file.jpg" alt="ảnh lỗi">
+
+  <script>
+    (() => {
+      const isFirstLoad = !localStorage.getItem('img_retry_once');
+
+      if (isFirstLoad) {
+        window.addEventListener('load', () => {
+          const imgs = document.querySelectorAll('img');
+          imgs.forEach(img => {
+            let retried = false;
+
+            img.onerror = () => {
+              if (!retried) {
+                retried = true;
+                setTimeout(() => {
+                  const oldSrc = img.src;
+                  img.src = '';
+                  img.src = oldSrc;
+                  console.log('Đã reload ảnh lỗi:', oldSrc);
+                }, 300);
+              }
+            };
+          });
+
+          localStorage.setItem('img_retry_once', '1');
+        });
+      }
+    })();
+  </script>
+</body>
+</html>
