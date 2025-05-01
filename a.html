@@ -2,51 +2,38 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <title>Test Reload Ảnh nếu lỗi</title>
+  <title>CDN Proxy Test</title>
+  <link rel="manifest" href="/manifest.json">
   <style>
-    img {
-      max-width: 300px;
-      margin: 10px;
-      border: 2px solid #ccc;
-    }
+    body { font-family: sans-serif; padding: 20px; }
+    img { max-width: 100%; margin-bottom: 20px; border: 1px solid #ccc; }
   </style>
 </head>
 <body>
-  <h2>Test tự động tải lại ảnh lỗi (chỉ lần đầu)</h2>
+  <h2>Kiểm tra tải ảnh qua Service Worker Proxy</h2>
+  <p>Nếu Service Worker chưa kiểm soát kịp, ảnh sẽ được tải lại 1 lần sau vài trăm mili giây.</p>
 
-  <p>✅ Ảnh đúng:</p>
-  <img src="https://azcloud.sbs/gh/azcloud68/my-cdn-test@main/images/test1.jpg" alt="ảnh ok">
+  <h3>Ảnh từ repo 1 (azcloud68/my-cdn-test)</h3>
+  <img src="/gh/azcloud68/my-cdn-test@main/images/test1.jpg" alt="Ảnh test 1">
 
-  <p>❌ Ảnh lỗi (sẽ reload):</p>
-  <img src="https://azcloud.sbs/gh/az1221/new1@main/sai-ten-file.jpg" alt="ảnh lỗi">
+  <h3>Ảnh từ repo 2 (az1221/new1)</h3>
+  <img src="/gh/az1221/new1@main/test.jpg" alt="Ảnh test 2">
 
   <script>
-    (() => {
-      const isFirstLoad = !localStorage.getItem('img_retry_once');
-
-      if (isFirstLoad) {
-        window.addEventListener('load', () => {
-          const imgs = document.querySelectorAll('img');
-          imgs.forEach(img => {
-            let retried = false;
-
-            img.onerror = () => {
-              if (!retried) {
-                retried = true;
-                setTimeout(() => {
-                  const oldSrc = img.src;
-                  img.src = '';
-                  img.src = oldSrc;
-                  console.log('Đã reload ảnh lỗi:', oldSrc);
-                }, 300);
-              }
-            };
-          });
-
-          localStorage.setItem('img_retry_once', '1');
+    const next = new URLSearchParams(location.search).get('next');
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' })
+        .then(() => navigator.serviceWorker.ready)
+        .then(() => {
+          if (next) setTimeout(() => location.replace('/' + next), 1000);
+        })
+        .catch(err => {
+          console.error('Service Worker đăng ký lỗi:', err);
+          if (next) location.replace('/' + next);
         });
-      }
-    })();
+    } else {
+      if (next) location.replace('/' + next);
+    }
   </script>
 </body>
 </html>
