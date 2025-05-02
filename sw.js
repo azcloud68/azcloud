@@ -1,5 +1,5 @@
 // Tên cache
-const CACHE_NAME = 'image-cache-v1';
+const CACHE_NAME = 'image-cache-v2';
 // Tên miền proxy
 const PROXY_DOMAIN = 'https://azcloud.sbs';
 // Danh sách user được phép
@@ -11,9 +11,13 @@ self.addEventListener('install', event => {
         caches.open(CACHE_NAME)
             .then(cache => {
                 console.log('Cache đã được mở');
+                // Pre-cache các tài nguyên quan trọng
                 return cache.addAll([
                     '/',
-                    '/index.html'
+                    '/index.html',
+                    '/assets/css/style.css',
+                    '/assets/js/app.js',
+                    '/images/placeholder.svg'
                 ]);
             })
             .then(() => self.skipWaiting())
@@ -25,7 +29,7 @@ self.addEventListener('activate', event => {
     event.waitUntil(
         Promise.all([
             clients.claim(),
-            clearOldCaches()
+            this.clearOldCaches()
         ]).then(() => {
             console.log('Service Worker đã kích hoạt');
         })
@@ -39,9 +43,15 @@ self.addEventListener('fetch', event => {
     // Xử lý các request ảnh proxy
     if (url.pathname.startsWith('/proxy/')) {
         event.respondWith(
-            handleImageProxyRequest(event.request)
+            this.handleImageProxyRequest(event.request)
         );
+        return;
     }
+    
+    // Xử lý các request khác (cache first)
+    event.respondWith(
+        this.handleOtherRequests(event.request)
+    );
 });
 
 // Xử lý request proxy ảnh
@@ -51,10 +61,7 @@ async function handleImageProxyRequest(request) {
     
     // Kiểm tra user có được phép không
     if (!ALLOWED_USERS.includes(user)) {
-        return new Response('Truy cập bị từ chối', { 
-            status: 403,
-            headers: { 'Content-Type': 'text/plain' }
-        });
+        return this.createErrorResponse('Truy cập bị từ chối', 403);
     }
     
     // Tạo URL thực tế đến azcloud.sbs
@@ -86,23 +93,47 @@ async function handleImageProxyRequest(request) {
         }
         
         // Fallback: trả về ảnh placeholder
-        return createPlaceholderResponse();
+        return this.createPlaceholderResponse();
+    }
+}
+
+// Xử lý các request khác (cache first)
+async function handleOtherRequests(request) {
+    try {
+        // Thử lấy từ cache trước
+        const cachedResponse = await caches.match(request);
+        if (cachedResponse) return cachedResponse;
+        
+        // Nếu không có trong cache, tải từ mạng
+        const networkResponse = await fetch(request);
+        
+        // Cache response nếu cần
+        if (networkResponse.ok && request.method === 'GET') {
+            const cache = await caches.open(CACHE_NAME);
+            await cache.put(request, networkResponse.clone());
+        }
+        
+        return networkResponse;
+    } catch (error) {
+        // Fallback cho các request HTML
+        if (request.headers.get('Accept').includes('text/html')) {
+            return caches.match('/offline.html');
+        }
+        throw error;
     }
 }
 
 // Tạo ảnh placeholder khi có lỗi
 function createPlaceholderResponse() {
-    const svg = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
-            <rect width="200" height="200" fill="#f5f5f5"/>
-            <text x="100" y="110" font-family="Arial" font-size="16" text-anchor="middle" fill="#999">
-                Không thể tải ảnh
-            </text>
-        </svg>
-    `;
-    
-    return new Response(svg, {
-        headers: { 'Content-Type': 'image/svg+xml' }
+    return caches.match('/images/placeholder.svg')
+        .then(response => response || this.createErrorResponse());
+}
+
+// Tạo response lỗi
+function createErrorResponse(message = 'Lỗi tải ảnh', status = 500) {
+    return new Response(message, { 
+        status: status,
+        headers: { 'Content-Type': 'text/plain' }
     });
 }
 
