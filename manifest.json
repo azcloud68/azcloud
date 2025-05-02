@@ -1,10 +1,21 @@
 {
-  "name": "azcloud CDN Proxy",
-  "short_name": "azCDN",
-  "start_url": "/",
-  "display": "standalone",
-  "scope": "/",
-  "background_color": "#ffffff",
-  "description": "Proxy nội dung jsDelivr qua azcloud.sbs",
-  "theme_color": "#007bff"
+    "name": "Proxy Ảnh azcloud.sbs",
+    "short_name": "ImageProxy",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#2c3e50",
+    "theme_color": "#2c3e50",
+    "description": "Hệ thống proxy ảnh sử dụng tên miền azcloud.sbs",
+    "icons": [
+        {
+            "src": "/images/icon-192x192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "/images/icon-512x512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
 }
