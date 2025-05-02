@@ -3,159 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Proxy Ảnh azcloud.sbs</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        .image-container {
-            margin: 30px 0;
-            border: 1px solid #eee;
-            padding: 20px;
-            border-radius: 8px;
-            background: #f9f9f9;
-        }
-        .proxy-image {
-            max-width: 100%;
-            height: auto;
-            display: block;
-            margin: 0 auto;
-            border: 1px solid #ddd;
-        }
-        .loading {
-            background: #f5f5f5;
-            min-height: 200px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #888;
-        }
-        .tech-details {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 5px;
-            margin-top: 15px;
-            font-family: monospace;
-            font-size: 14px;
-        }
-    </style>
+    <title>Hệ Thống Proxy Ảnh - azcloud.sbs</title>
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="manifest" href="/manifest.json">
 </head>
 <body>
-    <h1>Hệ Thống Proxy Ảnh azcloud.sbs</h1>
-    <p>Triển khai proxy ảnh sử dụng tên miền riêng thay vì jsDelivr</p>
+    <header class="header">
+        <h1>Hệ Thống Proxy Ảnh</h1>
+        <p>Tên miền: azcloud.sbs</p>
+    </header>
 
-    <div class="image-container">
-        <h2>Ảnh Demo</h2>
-        <div class="loading" id="loading-1">Đang tải ảnh...</div>
-        <img class="proxy-image" 
-             id="image-1"
-             data-src="/proxy/azcloud68/my-cdn-test/main/images/test1.jpg" 
-             alt="Ảnh test 1"
-             style="display: none;">
-    </div>
+    <main class="main-content">
+        <section class="image-gallery">
+            <div class="image-container">
+                <div class="loading-indicator" id="loading-1">
+                    <div class="spinner"></div>
+                    <span>Đang tải ảnh...</span>
+                </div>
+                <img class="proxy-image" 
+                     id="image-1"
+                     data-src="/proxy/azcloud68/my-cdn-test/main/images/test1.jpg" 
+                     alt="Ảnh demo 1"
+                     crossorigin="anonymous">
+            </div>
 
-    <script>
-        // Hàm khởi tạo toàn bộ ứng dụng
-        function initApp() {
-            initServiceWorker();
-            setupImageLoading();
-        }
+            <div class="image-container">
+                <div class="loading-indicator" id="loading-2">
+                    <div class="spinner"></div>
+                    <span>Đang tải ảnh...</span>
+                </div>
+                <img class="proxy-image" 
+                     id="image-2"
+                     data-src="/proxy/azcloud68/my-cdn-test/main/images/test2.jpg" 
+                     alt="Ảnh demo 2"
+                     crossorigin="anonymous">
+            </div>
+        </section>
 
-        // Đăng ký Service Worker
-        function initServiceWorker() {
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('/sw.js', { scope: '/' })
-                    .then(registration => {
-                        console.log('Service Worker đã đăng ký thành công');
-                        
-                        // Kiểm tra nếu có bản cập nhật
-                        registration.addEventListener('updatefound', () => {
-                            const newWorker = registration.installing;
-                            newWorker.addEventListener('statechange', () => {
-                                if (newWorker.state === 'activated') {
-                                    console.log('Service Worker mới đã kích hoạt');
-                                    window.location.reload();
-                                }
-                            });
-                        });
-                    })
-                    .catch(error => {
-                        console.error('Lỗi đăng ký Service Worker:', error);
-                        loadImagesDirect(); // Fallback nếu không thể đăng ký SW
-                    });
-            } else {
-                console.warn('Trình duyệt không hỗ trợ Service Worker');
-                loadImagesDirect(); // Fallback cho trình duyệt cũ
-            }
-        }
+        <div class="status-log" id="status-log">
+            <h3>Nhật ký hoạt động:</h3>
+            <div class="log-entries" id="log-entries"></div>
+        </div>
+    </main>
 
-        // Thiết lập tải ảnh
-        function setupImageLoading() {
-            const images = document.querySelectorAll('.proxy-image[data-src]');
-            
-            images.forEach(img => {
-                const loadingElement = document.getElementById(`loading-${img.id.split('-')[1]}`);
-                
-                // Thêm sự kiện onload và onerror
-                img.onload = function() {
-                    this.style.display = 'block';
-                    if (loadingElement) loadingElement.style.display = 'none';
-                };
-                
-                img.onerror = function() {
-                    console.error(`Không thể tải ảnh: ${this.dataset.src}`);
-                    retryImageLoad(this, loadingElement);
-                };
-                
-                // Bắt đầu tải ảnh
-                loadImageWithProxy(img);
-            });
-        }
+    <footer class="footer">
+        <p>Hệ thống proxy ảnh &copy; 2023</p>
+    </footer>
 
-        // Tải ảnh qua proxy
-        function loadImageWithProxy(imgElement) {
-            const proxyUrl = `https://azcloud.sbs/proxy?url=${encodeURIComponent(imgElement.dataset.src)}`;
-            imgElement.src = proxyUrl;
-        }
-
-        // Hàm thử lại khi tải ảnh lỗi
-        function retryImageLoad(imgElement, loadingElement, attempt = 1) {
-            if (attempt > 3) {
-                console.warn('Đã thử tải lại 3 lần nhưng không thành công');
-                if (loadingElement) {
-                    loadingElement.textContent = 'Không thể tải ảnh';
-                }
-                return;
-            }
-            
-            if (loadingElement) {
-                loadingElement.textContent = `Đang thử tải lại (lần ${attempt})...`;
-            }
-            
-            setTimeout(() => {
-                loadImageWithProxy(imgElement);
-            }, 1000 * attempt);
-        }
-
-        // Fallback tải ảnh trực tiếp (không qua proxy)
-        function loadImagesDirect() {
-            document.querySelectorAll('.proxy-image[data-src]').forEach(img => {
-                img.src = convertToDirectUrl(img.dataset.src);
-            });
-        }
-
-        // Chuyển đổi URL proxy thành URL trực tiếp
-        function convertToDirectUrl(proxyUrl) {
-            const path = proxyUrl.replace('/proxy/', '');
-            return `https://cdn.jsdelivr.net/gh/${path}`;
-        }
-
-        // Khởi động ứng dụng khi DOM sẵn sàng
-        document.addEventListener('DOMContentLoaded', initApp);
-    </script>
+    <script src="/assets/js/app.js"></script>
 </body>
 </html>
