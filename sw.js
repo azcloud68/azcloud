@@ -1,147 +1,91 @@
-// Tên cache
-const CACHE_NAME = 'image-cache-v2';
-// Tên miền proxy
+const CACHE_NAME = 'image-cache-v3';
 const PROXY_DOMAIN = 'https://azcloud.sbs';
-// Danh sách user được phép
+const FALLBACK_DOMAIN = 'https://cdn.jsdelivr.net/gh';
 const ALLOWED_USERS = ['azcloud68', 'az1221'];
 
-// Sự kiện cài đặt Service Worker
 self.addEventListener('install', event => {
-    event.waitUntil(
-        caches.open(CACHE_NAME)
-            .then(cache => {
-                console.log('Cache đã được mở');
-                // Pre-cache các tài nguyên quan trọng
-                return cache.addAll([
-                    '/',
-                    '/index.html',
-                    '/assets/css/style.css',
-                    '/assets/js/app.js',
-                    '/images/placeholder.svg'
-                ]);
-            })
-            .then(() => self.skipWaiting())
-    );
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => cache.addAll([
+        '/offline.html',
+        '/images/placeholder.jpg'
+      ]))
+      .then(() => self.skipWaiting())
+  );
 });
 
-// Sự kiện kích hoạt Service Worker
 self.addEventListener('activate', event => {
-    event.waitUntil(
-        Promise.all([
-            clients.claim(),
-            this.clearOldCaches()
-        ]).then(() => {
-            console.log('Service Worker đã kích hoạt');
-        })
-    );
+  event.waitUntil(
+    Promise.all([
+      clients.claim(),
+      clearOldCaches()
+    ])
+  );
 });
 
-// Sự kiện intercept request
 self.addEventListener('fetch', event => {
-    const url = new URL(event.request.url);
-    
-    // Xử lý các request ảnh proxy
-    if (url.pathname.startsWith('/proxy/')) {
-        event.respondWith(
-            this.handleImageProxyRequest(event.request)
-        );
-        return;
-    }
-    
-    // Xử lý các request khác (cache first)
+  const url = new URL(event.request.url);
+  
+  // Xử lý request proxy
+  if (url.pathname.startsWith('/proxy/')) {
     event.respondWith(
-        this.handleOtherRequests(event.request)
+      handleProxyRequest(event.request)
+        .catch(() => fallbackResponse(event.request))
     );
+    return;
+  }
+  
+  // Xử lý request khác
+  event.respondWith(
+    caches.match(event.request)
+      .then(cached => cached || fetch(event.request))
+  );
 });
 
-// Xử lý request proxy ảnh
-async function handleImageProxyRequest(request) {
-    const path = new URL(request.url).pathname.replace('/proxy/', '');
-    const user = path.split('/')[0];
-    
-    // Kiểm tra user có được phép không
-    if (!ALLOWED_USERS.includes(user)) {
-        return this.createErrorResponse('Truy cập bị từ chối', 403);
-    }
-    
-    // Tạo URL thực tế đến azcloud.sbs
-    const actualUrl = `${PROXY_DOMAIN}/gh/${path}`;
-    
-    try {
-        // Thử tải từ mạng trước
-        const networkResponse = await fetch(actualUrl, {
-            headers: {
-                'Accept': 'image/*',
-                'X-Proxy-Source': 'github-pages'
-            }
-        });
-        
-        if (networkResponse.ok) {
-            // Lưu vào cache
-            const cache = await caches.open(CACHE_NAME);
-            await cache.put(request, networkResponse.clone());
-            return networkResponse;
-        }
-        throw new Error('Network response not OK');
-    } catch (error) {
-        console.error('Lỗi tải ảnh từ proxy:', error);
-        
-        // Thử lấy từ cache
-        const cachedResponse = await caches.match(request);
-        if (cachedResponse) {
-            return cachedResponse;
-        }
-        
-        // Fallback: trả về ảnh placeholder
-        return this.createPlaceholderResponse();
-    }
-}
+async function handleProxyRequest(request) {
+  const path = new URL(request.url).pathname.replace('/proxy/', '');
+  const [user, repo, branch, ...filePath] = path.split('/');
+  
+  if (!ALLOWED_USERS.includes(user)) {
+    return new Response('Access denied', { status: 403 });
+  }
 
-// Xử lý các request khác (cache first)
-async function handleOtherRequests(request) {
-    try {
-        // Thử lấy từ cache trước
-        const cachedResponse = await caches.match(request);
-        if (cachedResponse) return cachedResponse;
-        
-        // Nếu không có trong cache, tải từ mạng
-        const networkResponse = await fetch(request);
-        
-        // Cache response nếu cần
-        if (networkResponse.ok && request.method === 'GET') {
-            const cache = await caches.open(CACHE_NAME);
-            await cache.put(request, networkResponse.clone());
-        }
-        
-        return networkResponse;
-    } catch (error) {
-        // Fallback cho các request HTML
-        if (request.headers.get('Accept').includes('text/html')) {
-            return caches.match('/offline.html');
-        }
-        throw error;
-    }
-}
-
-// Tạo ảnh placeholder khi có lỗi
-function createPlaceholderResponse() {
-    return caches.match('/images/placeholder.svg')
-        .then(response => response || this.createErrorResponse());
-}
-
-// Tạo response lỗi
-function createErrorResponse(message = 'Lỗi tải ảnh', status = 500) {
-    return new Response(message, { 
-        status: status,
-        headers: { 'Content-Type': 'text/plain' }
+  // Tạo cả 2 URL proxy và fallback
+  const proxyUrl = `${PROXY_DOMAIN}/gh/${user}/${repo}@${branch}/${filePath.join('/')}`;
+  const fallbackUrl = `${FALLBACK_DOMAIN}/${user}/${repo}@${branch}/${filePath.join('/')}`;
+  
+  try {
+    // Thử tải qua proxy trước
+    const res = await fetch(proxyUrl, {
+      headers: { 'X-Proxy-Source': 'github-pages' }
     });
+    
+    if (res.ok) {
+      // Cache response nếu thành công
+      const cache = await caches.open(CACHE_NAME);
+      await cache.put(request, res.clone());
+      return res;
+    }
+    throw new Error('Proxy failed');
+  } catch (err) {
+    // Fallback tải trực tiếp từ jsDelivr
+    return fetch(fallbackUrl);
+  }
 }
 
-// Xóa cache cũ
+async function fallbackResponse(request) {
+  // Thử lấy từ cache
+  const cached = await caches.match(request);
+  if (cached) return cached;
+  
+  // Trả về placeholder nếu không có cache
+  return caches.match('/images/placeholder.jpg');
+}
+
 async function clearOldCaches() {
-    const keys = await caches.keys();
-    return Promise.all(
-        keys.filter(key => key !== CACHE_NAME)
-            .map(key => caches.delete(key))
-    );
+  const keys = await caches.keys();
+  return Promise.all(
+    keys.filter(key => key !== CACHE_NAME)
+      .map(key => caches.delete(key))
+  );
 }
