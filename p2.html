@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Proxy Ảnh - Phương án 2</title>
+  <style>
+    .image-wrapper {
+      position: relative;
+      margin: 20px 0;
+    }
+    .iframe-loader {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .proxy-image {
+      max-width: 100%;
+      height: auto;
+      display: block;
+      border: 1px solid #eee;
+    }
+    .loading-placeholder {
+      background: #f9f9f9;
+      min-height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #999;
+    }
+  </style>
+</head>
+<body>
+  <h1>Proxy Ảnh - Phương án 2</h1>
+  <p>Kết hợp Iframe ẩn + Fallback hình ảnh</p>
+
+  <div class="image-wrapper">
+    <iframe class="iframe-loader"
+            src="https://cdn.jsdelivr.net/gh/azcloud68/my-cdn-test@main/images/test1.jpg?as=embed"
+            sandbox="allow-same-origin"
+            loading="lazy"></iframe>
+    <img class="proxy-image"
+         src="/gh/azcloud68/my-cdn-test@main/images/test1.jpg"
+         alt="Ảnh test 1"
+         onerror="imageFallback(this)"
+         loading="lazy">
+  </div>
+
+  <script>
+    function imageFallback(img) {
+      // Lấy URL từ iframe
+      const iframe = img.previousElementSibling;
+      if (iframe && iframe.tagName === 'IFRAME') {
+        img.src = iframe.src.split('?')[0]; // Bỏ query string
+        img.onerror = null; // Vô hiệu hóa xử lý lỗi sau khi fallback
+      }
+    }
+
+    // Kiểm tra trình duyệt không hỗ trợ iframe
+    if (/UCBrowser|Firefox/i.test(navigator.userAgent)) {
+      document.querySelectorAll('.proxy-image').forEach(img => {
+        const iframe = img.previousElementSibling;
+        if (iframe) {
+          img.src = iframe.src.split('?')[0];
+        }
+      });
+    }
+  </script>
+</body>
+</html>
