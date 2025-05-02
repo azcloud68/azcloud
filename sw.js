@@ -1,8 +1,7 @@
-// sw.js - Phiên bản hoạt động trên mọi trình duyệt
+const CACHE_NAME = 'image-cache-v3';
 const CDN_PREFIX = '/gh/';
 const JSDELIVR_PREFIX = 'https://cdn.jsdelivr.net/gh/';
 const ALLOWED_USERS = ['azcloud68', 'az1221'];
-const CACHE_NAME = 'universal-img-cache-v1';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -23,48 +22,53 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
-  
-  // Xử lý proxy ảnh
-  if (url.pathname.startsWith(CDN_PREFIX)) {
-    return handleImageProxy(event);
+
+  // Xử lý redirect ảnh
+  if (url.pathname.includes('/gh/redirect.html')) {
+    const imgPath = url.searchParams.get('img');
+    if (imgPath && ALLOWED_USERS.includes(imgPath.split('/')[0])) {
+      return event.respondWith(handleImageRedirect(imgPath));
+    }
   }
   
-  // Xử lý trang HTML
-  if (event.request.mode === 'navigate') {
-    return handlePageRequest(event);
+  // Xử lý proxy ảnh thông thường
+  if (url.pathname.startsWith(CDN_PREFIX)) {
+    const user = url.pathname.split('/')[2];
+    if (ALLOWED_USERS.includes(user)) {
+      return event.respondWith(handleImageProxy(event.request));
+    }
   }
 });
 
-async function handleImageProxy(event) {
-  const url = new URL(event.request.url);
-  const user = url.pathname.split('/')[2];
+async function handleImageRedirect(imgPath) {
+  const jsDelivrUrl = JSDELIVR_PREFIX + imgPath;
   
-  if (!ALLOWED_USERS.includes(user)) {
-    return event.respondWith(blockedResponse());
-  }
-
   try {
-    const response = await universalImageFetch(event.request);
-    return event.respondWith(response);
+    const response = await fetch(jsDelivrUrl, {
+      mode: 'cors',
+      cache: 'no-store'
+    });
+    
+    if (response.ok) {
+      const cache = await caches.open(CACHE_NAME);
+      await cache.put(new Request(CDN_PREFIX + imgPath), response.clone());
+      return response;
+    }
+    throw new Error('Network response not OK');
   } catch (error) {
-    console.error('[SW] Proxy failed:', error);
-    return event.respondWith(fallbackImage());
+    const cached = await caches.match(CDN_PREFIX + imgPath);
+    return cached || fetch(jsDelivrUrl, { mode: 'no-cors' });
   }
 }
 
-async function universalImageFetch(request) {
-  const newUrl = convertToJsDelivrUrl(request.url);
+async function handleImageProxy(request) {
+  const path = new URL(request.url).pathname.replace(CDN_PREFIX, '');
+  const jsDelivrUrl = JSDELIVR_PREFIX + path;
   
-  // Chiến lược: Network First với Cache Fallback
   try {
-    const networkResponse = await fetch(newUrl, {
+    const networkResponse = await fetch(jsDelivrUrl, {
       mode: 'cors',
-      cache: 'no-store',
-      referrerPolicy: 'no-referrer',
-      headers: new Headers({
-        'Accept': 'image/*',
-        'X-Requested-With': 'XMLHttpRequest'
-      })
+      cache: 'no-store'
     });
     
     if (networkResponse.ok) {
@@ -75,16 +79,8 @@ async function universalImageFetch(request) {
     throw new Error('Network response not OK');
   } catch (error) {
     const cached = await caches.match(request);
-    if (cached) return cached;
-    
-    // Fallback cuối cùng: tải trực tiếp không qua proxy
-    return fetch(newUrl, { mode: 'no-cors' });
+    return cached || fetch(jsDelivrUrl, { mode: 'no-cors' });
   }
-}
-
-function convertToJsDelivrUrl(url) {
-  const path = new URL(url).pathname.replace(CDN_PREFIX, '');
-  return JSDELIVR_PREFIX + path;
 }
 
 async function clearOldCaches() {
@@ -92,84 +88,4 @@ async function clearOldCaches() {
   return Promise.all(
     keys.map(key => key !== CACHE_NAME && caches.delete(key))
   );
-}
-
-async function handlePageRequest(event) {
-  try {
-    const response = await fetch(event.request);
-    
-    if (!response.headers.get('content-type')?.includes('text/html')) {
-      return response;
-    }
-    
-    const html = await response.text();
-    const modified = injectCompatibilityScript(html);
-    
-    return new Response(modified, {
-      headers: response.headers
-    });
-  } catch (error) {
-    console.error('[SW] Page handling failed:', error);
-    return fetch(event.request);
-  }
-}
-
-function injectCompatibilityScript(html) {
-  const retryScript = `
-    <script>
-    /* Universal Image Retry Handler */
-    document.addEventListener('DOMContentLoaded', function() {
-      function setupImageRetry() {
-        document.querySelectorAll('img[src^="${CDN_PREFIX}"]').forEach(img => {
-          if (img.dataset.origSrc) return;
-          
-          img.dataset.origSrc = img.src;
-          img.loading = 'eager';
-          
-          img.onerror = function() {
-            const self = this;
-            const retryCount = parseInt(self.dataset.retryCount || '0') + 1;
-            
-            if (retryCount > 3) {
-              // Fallback cuối cùng: dùng link trực tiếp
-              self.src = self.dataset.origSrc.replace('${CDN_PREFIX}', '${JSDELIVR_PREFIX}');
-              return;
-            }
-            
-            self.dataset.retryCount = retryCount;
-            setTimeout(() => {
-              self.src = self.dataset.origSrc + '?retry=' + Date.now();
-            }, 500 * retryCount);
-          };
-        });
-      }
-      
-      // Kiểm tra trình duyệt đặc biệt
-      if (/UCBrowser|UCMobile/i.test(navigator.userAgent)) {
-        setTimeout(setupImageRetry, 1000);
-      } else if (/Firefox/i.test(navigator.userAgent)) {
-        if (navigator.serviceWorker?.ready) {
-          navigator.serviceWorker.ready.then(setupImageRetry);
-        } else {
-          setTimeout(setupImageRetry, 500);
-        }
-      } else {
-        setupImageRetry();
-      }
-    });
-    </script>
-  `;
-  
-  return html.replace('</body>', retryScript + '</body>');
-}
-
-function blockedResponse() {
-  return new Response('Access denied', { status: 403 });
-}
-
-function fallbackImage() {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="#eee"/></svg>`;
-  return new Response(svg, {
-    headers: { 'Content-Type': 'image/svg+xml' }
-  });
 }
