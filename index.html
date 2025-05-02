@@ -1,55 +1,58 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ Thống Proxy Ảnh - azcloud.sbs</title>
-    <link rel="stylesheet" href="/assets/css/style.css">
-    <link rel="manifest" href="/manifest.json">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Proxy Ảnh azcloud.sbs</title>
+  <style>
+    .image-container {
+      position: relative;
+      margin: 20px 0;
+    }
+    .loading-status {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      padding: 10px;
+      background: rgba(255,255,255,0.8);
+      text-align: center;
+    }
+    .proxy-image {
+      width: 100%;
+      display: block;
+      opacity: 0;
+      transition: opacity 0.5s;
+    }
+    .proxy-image.loaded {
+      opacity: 1;
+    }
+  </style>
 </head>
 <body>
-    <header class="header">
-        <h1>Hệ Thống Proxy Ảnh</h1>
-        <p>Tên miền: azcloud.sbs</p>
-    </header>
+  <h1>Hệ Thống Proxy Ảnh</h1>
+  <p>Tên miền: azcloud.sbs</p>
 
-    <main class="main-content">
-        <section class="image-gallery">
-            <div class="image-container">
-                <div class="loading-indicator" id="loading-1">
-                    <div class="spinner"></div>
-                    <span>Đang tải ảnh...</span>
-                </div>
-                <img class="proxy-image" 
-                     id="image-1"
-                     data-src="/proxy/azcloud68/my-cdn-test/main/images/test1.jpg" 
-                     alt="Ảnh demo 1"
-                     crossorigin="anonymous">
-            </div>
+  <div class="image-container">
+    <div class="loading-status" id="loading-1">Đang tải ảnh...</div>
+    <img class="proxy-image"
+         data-proxy-src="/proxy/azcloud68/my-cdn-test/main/images/test1.jpg"
+         data-fallback-src="https://cdn.jsdelivr.net/gh/azcloud68/my-cdn-test@main/images/test1.jpg"
+         data-loading-el="loading-1"
+         alt="Ảnh demo 1"
+         crossorigin="anonymous">
+  </div>
 
-            <div class="image-container">
-                <div class="loading-indicator" id="loading-2">
-                    <div class="spinner"></div>
-                    <span>Đang tải ảnh...</span>
-                </div>
-                <img class="proxy-image" 
-                     id="image-2"
-                     data-src="/proxy/azcloud68/my-cdn-test/main/images/test2.jpg" 
-                     alt="Ảnh demo 2"
-                     crossorigin="anonymous">
-            </div>
-        </section>
+  <div class="image-container">
+    <div class="loading-status" id="loading-2">Đang tải ảnh...</div>
+    <img class="proxy-image"
+         data-proxy-src="/proxy/azcloud68/my-cdn-test/main/images/test2.jpg"
+         data-fallback-src="https://cdn.jsdelivr.net/gh/azcloud68/my-cdn-test@main/images/test2.jpg"
+         data-loading-el="loading-2"
+         alt="Ảnh demo 2"
+         crossorigin="anonymous">
+  </div>
 
-        <div class="status-log" id="status-log">
-            <h3>Nhật ký hoạt động:</h3>
-            <div class="log-entries" id="log-entries"></div>
-        </div>
-    </main>
-
-    <footer class="footer">
-        <p>Hệ thống proxy ảnh &copy; 2023</p>
-    </footer>
-
-    <script src="/assets/js/app.js"></script>
+  <script src="/app.js"></script>
 </body>
 </html>
