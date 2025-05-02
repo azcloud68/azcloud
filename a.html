@@ -2,62 +2,146 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <title>Test trì hoãn ảnh đến khi SW sẵn sàng</title>
+  <title>Test Proxy CDN qua Service Worker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="manifest" href="/manifest.json">
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    img { max-width: 100%; margin-bottom: 20px; border: 1px solid #ccc; }
-    .loading { background: #f0f0f0; min-height: 100px; }
+    body { 
+      font-family: Arial, sans-serif; 
+      padding: 20px; 
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    img { 
+      max-width: 100%; 
+      height: auto;
+      margin-bottom: 20px; 
+      border: 1px solid #ccc;
+      background: #f5f5f5;
+      transition: opacity 0.3s ease;
+    }
+    .loading { 
+      min-height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #888;
+    }
+    h2, h3 {
+      color: #333;
+    }
   </style>
 </head>
 <body>
-  <h2>1221 Test Proxy CDN qua Service Worker</h2>
-  <p>Ảnh sẽ chỉ được tải khi Service Worker đã sẵn sàng.</p>
+  <h2>Test Proxy CDN qua Service Worker</h2>
+  <p>Ảnh sẽ được tải thông qua Service Worker proxy</p>
 
   <h3>Ảnh từ repo 1</h3>
-  <img data-src="/gh/azcloud68/my-cdn-test@main/images/test1.jpg" 
-       src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E" 
-       alt="Ảnh test 1" 
-       onerror="retryImage(this)">
+  <div class="image-container">
+    <img data-src="/gh/azcloud68/my-cdn-test@main/images/test1.jpg" 
+         src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23f5f5f5'/%3E%3Ctext x='50' y='55' font-family='Arial' font-size='10' text-anchor='middle' fill='%23999'%3EĐang tải...%3C/text%3E%3C/svg%3E" 
+         alt="Ảnh test 1"
+         loading="lazy">
+  </div>
 
   <h3>Ảnh từ repo 2</h3>
-  <img data-src="/gh/az1221/new1@main/test.jpg" 
-       src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E" 
-       alt="Ảnh test 2" 
-       onerror="retryImage(this)">
+  <div class="image-container">
+    <img data-src="/gh/az1221/new1@main/test.jpg" 
+         src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23f5f5f5'/%3E%3Ctext x='50' y='55' font-family='Arial' font-size='10' text-anchor='middle' fill='%23999'%3EĐang tải...%3C/text%3E%3C/svg%3E" 
+         alt="Ảnh test 2"
+         loading="lazy">
+  </div>
 
   <script>
-    // Hàm thử lại khi ảnh lỗi
-    function retryImage(img) {
-      setTimeout(() => {
-        img.src = img.dataset.src;
-      }, 300);
+    // Phiên bản nâng cao của retryImage
+    function retryImage(img, attempt = 1) {
+      if (attempt > 3) {
+        // Fallback cuối cùng: dùng link trực tiếp không qua proxy
+        img.src = img.dataset.src.replace('/gh/', 'https://cdn.jsdelivr.net/gh/');
+        return;
+      }
+      
+      // Thêm timestamp để tránh cache
+      img.src = img.dataset.src + (attempt > 1 ? '&retry=' + Date.now() : '');
+      
+      img.onerror = function() {
+        setTimeout(() => retryImage(img, attempt + 1), 500 * attempt);
+      };
     }
 
-    // Kiểm tra SW đã sẵn sàng chưa
-    function loadImagesWhenReady() {
-      if (navigator.serviceWorker.controller) {
-        document.querySelectorAll('img[data-src]').forEach(img => {
-          img.src = img.dataset.src;
+    // Hàm khởi tạo Service Worker
+    function initServiceWorker() {
+      if ('serviceWorker' in navigator) {
+        // Xóa các Service Worker cũ trước khi đăng ký mới
+        navigator.serviceWorker.getRegistrations().then(regs => {
+          regs.forEach(reg => reg.unregister());
+          
+          // Đăng ký Service Worker mới
+          navigator.serviceWorker.register('/sw.js', { scope: '/' })
+            .then(registration => {
+              console.log('SW registered:', registration);
+              
+              // Kiểm tra trạng thái SW
+              if (registration.active) {
+                loadImagesWhenReady();
+              } else {
+                registration.addEventListener('updatefound', () => {
+                  const newWorker = registration.installing;
+                  newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'activated') {
+                      loadImagesWhenReady();
+                    }
+                  });
+                });
+              }
+            })
+            .catch(err => {
+              console.error('SW registration failed:', err);
+              loadImagesDirect(); // Fallback nếu không thể đăng ký SW
+            });
         });
       } else {
-        setTimeout(loadImagesWhenReady, 100);
+        loadImagesDirect(); // Fallback cho trình duyệt không hỗ trợ SW
       }
     }
 
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js', { scope: '/' })
-        .then(() => {
-          // Bắt đầu kiểm tra khi SW sẵn sàng
-          loadImagesWhenReady();
-        })
-        .catch(err => console.error('SW register error:', err));
-    } else {
-      // Fallback khi trình duyệt không hỗ trợ SW
+    // Tải ảnh khi SW sẵn sàng
+    function loadImagesWhenReady() {
+      const maxAttempts = 10;
+      let attempts = 0;
+      
+      const checkSWReady = setInterval(() => {
+        attempts++;
+        if (navigator.serviceWorker.controller) {
+          clearInterval(checkSWReady);
+          loadImagesWithSW();
+        } else if (attempts >= maxAttempts) {
+          clearInterval(checkSWReady);
+          console.warn('SW not ready after max attempts, using direct load');
+          loadImagesDirect();
+        }
+      }, 100);
+    }
+
+    // Tải ảnh qua SW
+    function loadImagesWithSW() {
       document.querySelectorAll('img[data-src]').forEach(img => {
         img.src = img.dataset.src;
+        img.onerror = function() {
+          retryImage(this);
+        };
       });
     }
+
+    // Fallback tải ảnh trực tiếp
+    function loadImagesDirect() {
+      document.querySelectorAll('img[data-src]').forEach(img => {
+        img.src = img.dataset.src.replace('/gh/', 'https://cdn.jsdelivr.net/gh/');
+      });
+    }
+
+    // Khởi động khi DOM sẵn sàng
+    document.addEventListener('DOMContentLoaded', initServiceWorker);
   </script>
 </body>
 </html>
