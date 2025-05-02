@@ -1,155 +1,116 @@
-const CACHE_NAME = 'image-cache-v4';
-const CDN_PREFIX = '/gh/';
-const JSDELIVR_PREFIX = 'https://cdn.jsdelivr.net/gh/';
+// Tên cache
+const CACHE_NAME = 'image-cache-v1';
+// Tên miền proxy
+const PROXY_DOMAIN = 'https://azcloud.sbs';
+// Danh sách user được phép
 const ALLOWED_USERS = ['azcloud68', 'az1221'];
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        // Pre-cache một số tài nguyên nếu cần
-        return cache.addAll([
-          '/',
-          '/index.html',
-          '/embed.html'
-        ]);
-      })
-      .then(() => self.skipWaiting())
-  );
+// Sự kiện cài đặt Service Worker
+self.addEventListener('install', event => {
+    event.waitUntil(
+        caches.open(CACHE_NAME)
+            .then(cache => {
+                console.log('Cache đã được mở');
+                return cache.addAll([
+                    '/',
+                    '/index.html'
+                ]);
+            })
+            .then(() => self.skipWaiting())
+    );
 });
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    Promise.all([
-      clients.claim(),
-      clearOldCaches()
-    ])
-  );
-});
-
-self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
-  
-  // Xử lý route embed.html
-  if (url.pathname.endsWith('/embed.html')) {
-    return handleEmbedRequest(event);
-  }
-  
-  // Xử lý proxy ảnh .jpg
-  if (url.pathname.startsWith(CDN_PREFIX) && url.pathname.endsWith('.jpg')) {
-    return handleImageProxy(event);
-  }
-});
-
-async function handleEmbedRequest(event) {
-  const url = new URL(event.request.url);
-  const imageUrl = url.searchParams.get('url');
-  
-  if (imageUrl && isValidImageUrl(imageUrl)) {
-    event.respondWith(
-      fetch(imageUrl)
-        .then(networkResponse => {
-          // Clone response để cache
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME)
-            .then(cache => cache.put(event.request, responseToCache));
-          
-          return new Response(`
-            <!DOCTYPE html>
-            <html>
-            <head>
-              <meta charset="UTF-8">
-              <style>body,html { margin:0; padding:0; height:100%; }</style>
-            </head>
-            <body>
-              <img src="${imageUrl}" 
-                   style="width:100%; height:100%; object-fit:contain;"
-                   onerror="window.parent.postMessage('embedLoadFailed', '*')">
-            </body>
-            </html>
-          `, {
-            headers: { 'Content-Type': 'text/html' }
-          });
-        })
-        .catch(() => {
-          return caches.match(event.request)
-            .then(cached => cached || fallbackEmbedResponse());
+// Sự kiện kích hoạt Service Worker
+self.addEventListener('activate', event => {
+    event.waitUntil(
+        Promise.all([
+            clients.claim(),
+            clearOldCaches()
+        ]).then(() => {
+            console.log('Service Worker đã kích hoạt');
         })
     );
-  } else {
-    event.respondWith(fallbackEmbedResponse());
-  }
-}
+});
 
-async function handleImageProxy(event) {
-  const path = new URL(event.request.url).pathname.replace(CDN_PREFIX, '');
-  const user = path.split('/')[0];
-  
-  if (!ALLOWED_USERS.includes(user)) {
-    return event.respondWith(blockedResponse());
-  }
-
-  const jsDelivrUrl = JSDELIVR_PREFIX + path;
-  
-  try {
-    const networkResponse = await fetch(jsDelivrUrl, {
-      mode: 'cors',
-      cache: 'no-store',
-      headers: { 'Accept': 'image/*' }
-    });
+// Sự kiện intercept request
+self.addEventListener('fetch', event => {
+    const url = new URL(event.request.url);
     
-    if (networkResponse.ok) {
-      const cache = await caches.open(CACHE_NAME);
-      await cache.put(event.request, networkResponse.clone());
-      return event.respondWith(networkResponse);
+    // Xử lý các request ảnh proxy
+    if (url.pathname.startsWith('/proxy/')) {
+        event.respondWith(
+            handleImageProxyRequest(event.request)
+        );
     }
-    throw new Error('Network response not OK');
-  } catch (error) {
-    const cached = await caches.match(event.request);
-    if (cached) {
-      return event.respondWith(cached);
+});
+
+// Xử lý request proxy ảnh
+async function handleImageProxyRequest(request) {
+    const path = new URL(request.url).pathname.replace('/proxy/', '');
+    const user = path.split('/')[0];
+    
+    // Kiểm tra user có được phép không
+    if (!ALLOWED_USERS.includes(user)) {
+        return new Response('Truy cập bị từ chối', { 
+            status: 403,
+            headers: { 'Content-Type': 'text/plain' }
+        });
     }
-    return event.respondWith(fetch(jsDelivrUrl, { mode: 'no-cors' }));
-  }
+    
+    // Tạo URL thực tế đến azcloud.sbs
+    const actualUrl = `${PROXY_DOMAIN}/gh/${path}`;
+    
+    try {
+        // Thử tải từ mạng trước
+        const networkResponse = await fetch(actualUrl, {
+            headers: {
+                'Accept': 'image/*',
+                'X-Proxy-Source': 'github-pages'
+            }
+        });
+        
+        if (networkResponse.ok) {
+            // Lưu vào cache
+            const cache = await caches.open(CACHE_NAME);
+            await cache.put(request, networkResponse.clone());
+            return networkResponse;
+        }
+        throw new Error('Network response not OK');
+    } catch (error) {
+        console.error('Lỗi tải ảnh từ proxy:', error);
+        
+        // Thử lấy từ cache
+        const cachedResponse = await caches.match(request);
+        if (cachedResponse) {
+            return cachedResponse;
+        }
+        
+        // Fallback: trả về ảnh placeholder
+        return createPlaceholderResponse();
+    }
 }
 
-function isValidImageUrl(url) {
-  try {
-    const parsed = new URL(url);
-    return parsed.hostname === 'cdn.jsdelivr.net' && 
-           ALLOWED_USERS.includes(parsed.pathname.split('/')[2]);
-  } catch {
-    return false;
-  }
+// Tạo ảnh placeholder khi có lỗi
+function createPlaceholderResponse() {
+    const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+            <rect width="200" height="200" fill="#f5f5f5"/>
+            <text x="100" y="110" font-family="Arial" font-size="16" text-anchor="middle" fill="#999">
+                Không thể tải ảnh
+            </text>
+        </svg>
+    `;
+    
+    return new Response(svg, {
+        headers: { 'Content-Type': 'image/svg+xml' }
+    });
 }
 
+// Xóa cache cũ
 async function clearOldCaches() {
-  const keys = await caches.keys();
-  return Promise.all(
-    keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
-  );
-}
-
-function blockedResponse() {
-  return new Response('Access denied', { 
-    status: 403,
-    headers: { 'Content-Type': 'text/plain' }
-  });
-}
-
-function fallbackEmbedResponse() {
-  return new Response(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <script>
-        window.parent.postMessage('embedLoadFailed', '*');
-      </script>
-    </head>
-    <body></body>
-    </html>
-  `, {
-    headers: { 'Content-Type': 'text/html' }
-  });
+    const keys = await caches.keys();
+    return Promise.all(
+        keys.filter(key => key !== CACHE_NAME)
+            .map(key => caches.delete(key))
+    );
 }
