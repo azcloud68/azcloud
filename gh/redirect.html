@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const imgPath = params.get('img');
+    if (imgPath) {
+      window.location.replace(`https://cdn.jsdelivr.net/gh/${imgPath}`);
+    }
+  </script>
+</head>
+<body>
+  Redirecting...
+</body>
+</html>
