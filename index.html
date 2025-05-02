@@ -1,58 +1,173 @@
 <!DOCTYPE html>
-<html>
+<html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <title>azCDN Proxy</title>
-  <link rel="manifest" href="/manifest.json">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Demo Proxy Ảnh GitHub Pages</title>
+  <meta name="description" content="Demo hệ thống proxy ảnh trên GitHub Pages">
   <style>
     body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      padding: 50px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      color: #333;
     }
-    img {
-      max-width: 400px;
-      margin: 20px auto;
-      display: block;
-      border: 1px solid #ccc;
-      box-shadow: 2px 2px 6px rgba(0,0,0,0.1);
+    h1, h2 {
+      color: #2c3e50;
     }
-    h2 {
-      color: #007bff;
+    .image-container {
+      margin: 30px 0;
+      border: 1px solid #eee;
+      padding: 20px;
+      border-radius: 8px;
+      background: #f9f9f9;
+    }
+    .proxy-method {
+      margin-bottom: 40px;
+      padding: 20px;
+      background: white;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      border-radius: 8px;
+    }
+    .img-embed-wrapper {
+      position: relative;
+      width: 100%;
+      padding-bottom: 56.25%; /* 16:9 ratio */
+      margin: 15px 0;
+      background: #f0f0f0;
+    }
+    .embed-frame {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+    .img-placeholder {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: white;
+    }
+    .tech-details {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 5px;
+      margin-top: 15px;
+      font-family: monospace;
+      font-size: 14px;
     }
   </style>
 </head>
 <body>
-  <h2>Đang khởi tạo proxy CDN...</h2>
-  <p>Nếu hình ảnh bên dưới hiển thị, proxy đang hoạt động:</p>
+  <h1>Demo Proxy Ảnh GitHub Pages</h1>
+  <p>Triển khai hệ thống proxy ảnh với 3 phương pháp khác nhau</p>
 
-  <!-- Link test qua Service Worker proxy -->
-  <img src="/gh/azcloud68/my-cdn-test@main/images/test1.jpg" alt="Test Image 1">
-  <img src="/gh/az1221/new1@main/test.jpg" alt="Test Image 2">
+  <!-- Phương pháp 1: Sử dụng iframe embed -->
+  <div class="proxy-method">
+    <h2>1. Phương pháp Iframe Embed</h2>
+    <div class="image-container">
+      <div class="img-embed-wrapper">
+        <!-- Iframe chứa nội dung thực -->
+        <iframe class="embed-frame"
+                src="/gh/embed.html?url=https://cdn.jsdelivr.net/gh/azcloud68/my-cdn-test@main/images/test1.jpg"
+                sandbox="allow-same-origin"
+                loading="lazy"
+                allowfullscreen>
+        </iframe>
+        
+        <!-- Ảnh giả (hiển thị .jpg để SEO) -->
+        <img src="/gh/azcloud68/my-cdn-test@main/images/test1.jpg" 
+             class="img-placeholder"
+             alt="Ảnh test 1 - Phương pháp iframe"
+             loading="lazy"
+             onerror="this.style.display='none'">
+      </div>
+      <div class="tech-details">
+        <strong>Công nghệ sử dụng:</strong><br>
+        - Iframe sandbox để nhúng nội dung an toàn<br>
+        - File embed.html xử lý nội dung thực<br>
+        - Ảnh placeholder giữ URL .jpg cho SEO
+      </div>
+    </div>
+  </div>
+
+  <!-- Phương pháp 2: Sử dụng Service Worker -->
+  <div class="proxy-method">
+    <h2>2. Phương pháp Service Worker</h2>
+    <div class="image-container">
+      <img src="/gh/azcloud68/my-cdn-test@main/images/test1.jpg" 
+           alt="Ảnh test 1 - Phương pháp SW"
+           loading="lazy"
+           class="img-placeholder"
+           style="width:100%; height:auto; display:block;">
+      <div class="tech-details">
+        <strong>Công nghệ sử dụng:</strong><br>
+        - Service Worker intercept request<br>
+        - Proxy qua jsDelivr CDN<br>
+        - Cache fallback khi offline<br>
+        - Giữ nguyên URL ảnh .jpg
+      </div>
+    </div>
+  </div>
+
+  <!-- Phương pháp 3: Kết hợp cả hai -->
+  <div class="proxy-method">
+    <h2>3. Phương pháp Hybrid</h2>
+    <div class="image-container">
+      <div class="img-embed-wrapper">
+        <iframe class="embed-frame"
+                src="/gh/embed.html?url=https://cdn.jsdelivr.net/gh/azcloud68/my-cdn-test@main/images/test1.jpg"
+                sandbox="allow-same-origin"
+                loading="lazy">
+        </iframe>
+        <img src="/gh/azcloud68/my-cdn-test@main/images/test1.jpg" 
+             class="img-placeholder"
+             alt="Ảnh test 1 - Phương pháp hybrid"
+             loading="lazy"
+             onerror="this.src='https://cdn.jsdelivr.net/gh/azcloud68/my-cdn-test@main/images/test1.jpg'">
+      </div>
+      <div class="tech-details">
+        <strong>Công nghệ sử dụng:</strong><br>
+        - Kết hợp iframe + Service Worker<br>
+        - 2 lớp fallback (iframe + direct URL)<br>
+        - Tương thích mọi trình duyệt<br>
+        - Tối ưu SEO với URL .jpg
+      </div>
+    </div>
+  </div>
 
   <script>
-    const next = new URLSearchParams(location.search).get('next');
-
+    // Đăng ký Service Worker
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js', { scope: '/' })
-        .then(() => navigator.serviceWorker.ready)
-        .then(() => {
-          console.log('Service Worker đã sẵn sàng.');
-          if (next) {
-            setTimeout(() => {
-              location.replace('/' + next);
-            }, 1000);
+        .then(reg => {
+          console.log('SW registered:', reg);
+          // Force refresh khi SW mới được cài đặt
+          if (reg.active && !navigator.serviceWorker.controller) {
+            window.location.reload();
           }
         })
-        .catch(err => {
-          console.error('Lỗi Service Worker:', err);
-          if (next) location.replace('/' + next);
-        });
-    } else {
-      console.warn('Trình duyệt không hỗ trợ Service Worker.');
-      if (next) location.replace('/' + next);
+        .catch(err => console.error('SW registration failed:', err));
     }
+
+    // Xử lý message từ iframe
+    window.addEventListener('message', (e) => {
+      if (e.data === 'embedLoadFailed') {
+        document.querySelectorAll('.embed-frame').forEach(iframe => {
+          const img = iframe.nextElementSibling;
+          if (img && img.tagName === 'IMG') {
+            img.style.display = 'block';
+          }
+        });
+      }
+    });
   </script>
-  <script src="/auto-reload-images.js"></script>
 </body>
 </html>
