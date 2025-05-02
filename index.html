@@ -1,173 +1,161 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Demo Proxy Ảnh GitHub Pages</title>
-  <meta name="description" content="Demo hệ thống proxy ảnh trên GitHub Pages">
-  <style>
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      line-height: 1.6;
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 20px;
-      color: #333;
-    }
-    h1, h2 {
-      color: #2c3e50;
-    }
-    .image-container {
-      margin: 30px 0;
-      border: 1px solid #eee;
-      padding: 20px;
-      border-radius: 8px;
-      background: #f9f9f9;
-    }
-    .proxy-method {
-      margin-bottom: 40px;
-      padding: 20px;
-      background: white;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-      border-radius: 8px;
-    }
-    .img-embed-wrapper {
-      position: relative;
-      width: 100%;
-      padding-bottom: 56.25%; /* 16:9 ratio */
-      margin: 15px 0;
-      background: #f0f0f0;
-    }
-    .embed-frame {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      border: none;
-    }
-    .img-placeholder {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      background: white;
-    }
-    .tech-details {
-      background: #f8f9fa;
-      padding: 15px;
-      border-radius: 5px;
-      margin-top: 15px;
-      font-family: monospace;
-      font-size: 14px;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proxy Ảnh azcloud.sbs</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .image-container {
+            margin: 30px 0;
+            border: 1px solid #eee;
+            padding: 20px;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        .proxy-image {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+            border: 1px solid #ddd;
+        }
+        .loading {
+            background: #f5f5f5;
+            min-height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #888;
+        }
+        .tech-details {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+    </style>
 </head>
 <body>
-  <h1>Demo Proxy Ảnh GitHub Pages</h1>
-  <p>Triển khai hệ thống proxy ảnh với 3 phương pháp khác nhau</p>
+    <h1>Hệ Thống Proxy Ảnh azcloud.sbs</h1>
+    <p>Triển khai proxy ảnh sử dụng tên miền riêng thay vì jsDelivr</p>
 
-  <!-- Phương pháp 1: Sử dụng iframe embed -->
-  <div class="proxy-method">
-    <h2>1. Phương pháp Iframe Embed</h2>
     <div class="image-container">
-      <div class="img-embed-wrapper">
-        <!-- Iframe chứa nội dung thực -->
-        <iframe class="embed-frame"
-                src="/gh/embed.html?url=https://cdn.jsdelivr.net/gh/azcloud68/my-cdn-test@main/images/test1.jpg"
-                sandbox="allow-same-origin"
-                loading="lazy"
-                allowfullscreen>
-        </iframe>
-        
-        <!-- Ảnh giả (hiển thị .jpg để SEO) -->
-        <img src="/gh/azcloud68/my-cdn-test@main/images/test1.jpg" 
-             class="img-placeholder"
-             alt="Ảnh test 1 - Phương pháp iframe"
-             loading="lazy"
-             onerror="this.style.display='none'">
-      </div>
-      <div class="tech-details">
-        <strong>Công nghệ sử dụng:</strong><br>
-        - Iframe sandbox để nhúng nội dung an toàn<br>
-        - File embed.html xử lý nội dung thực<br>
-        - Ảnh placeholder giữ URL .jpg cho SEO
-      </div>
+        <h2>Ảnh Demo</h2>
+        <div class="loading" id="loading-1">Đang tải ảnh...</div>
+        <img class="proxy-image" 
+             id="image-1"
+             data-src="/proxy/azcloud68/my-cdn-test/main/images/test1.jpg" 
+             alt="Ảnh test 1"
+             style="display: none;">
     </div>
-  </div>
 
-  <!-- Phương pháp 2: Sử dụng Service Worker -->
-  <div class="proxy-method">
-    <h2>2. Phương pháp Service Worker</h2>
-    <div class="image-container">
-      <img src="/gh/azcloud68/my-cdn-test@main/images/test1.jpg" 
-           alt="Ảnh test 1 - Phương pháp SW"
-           loading="lazy"
-           class="img-placeholder"
-           style="width:100%; height:auto; display:block;">
-      <div class="tech-details">
-        <strong>Công nghệ sử dụng:</strong><br>
-        - Service Worker intercept request<br>
-        - Proxy qua jsDelivr CDN<br>
-        - Cache fallback khi offline<br>
-        - Giữ nguyên URL ảnh .jpg
-      </div>
-    </div>
-  </div>
+    <script>
+        // Hàm khởi tạo toàn bộ ứng dụng
+        function initApp() {
+            initServiceWorker();
+            setupImageLoading();
+        }
 
-  <!-- Phương pháp 3: Kết hợp cả hai -->
-  <div class="proxy-method">
-    <h2>3. Phương pháp Hybrid</h2>
-    <div class="image-container">
-      <div class="img-embed-wrapper">
-        <iframe class="embed-frame"
-                src="/gh/embed.html?url=https://cdn.jsdelivr.net/gh/azcloud68/my-cdn-test@main/images/test1.jpg"
-                sandbox="allow-same-origin"
-                loading="lazy">
-        </iframe>
-        <img src="/gh/azcloud68/my-cdn-test@main/images/test1.jpg" 
-             class="img-placeholder"
-             alt="Ảnh test 1 - Phương pháp hybrid"
-             loading="lazy"
-             onerror="this.src='https://cdn.jsdelivr.net/gh/azcloud68/my-cdn-test@main/images/test1.jpg'">
-      </div>
-      <div class="tech-details">
-        <strong>Công nghệ sử dụng:</strong><br>
-        - Kết hợp iframe + Service Worker<br>
-        - 2 lớp fallback (iframe + direct URL)<br>
-        - Tương thích mọi trình duyệt<br>
-        - Tối ưu SEO với URL .jpg
-      </div>
-    </div>
-  </div>
+        // Đăng ký Service Worker
+        function initServiceWorker() {
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/sw.js', { scope: '/' })
+                    .then(registration => {
+                        console.log('Service Worker đã đăng ký thành công');
+                        
+                        // Kiểm tra nếu có bản cập nhật
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'activated') {
+                                    console.log('Service Worker mới đã kích hoạt');
+                                    window.location.reload();
+                                }
+                            });
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Lỗi đăng ký Service Worker:', error);
+                        loadImagesDirect(); // Fallback nếu không thể đăng ký SW
+                    });
+            } else {
+                console.warn('Trình duyệt không hỗ trợ Service Worker');
+                loadImagesDirect(); // Fallback cho trình duyệt cũ
+            }
+        }
 
-  <script>
-    // Đăng ký Service Worker
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js', { scope: '/' })
-        .then(reg => {
-          console.log('SW registered:', reg);
-          // Force refresh khi SW mới được cài đặt
-          if (reg.active && !navigator.serviceWorker.controller) {
-            window.location.reload();
-          }
-        })
-        .catch(err => console.error('SW registration failed:', err));
-    }
+        // Thiết lập tải ảnh
+        function setupImageLoading() {
+            const images = document.querySelectorAll('.proxy-image[data-src]');
+            
+            images.forEach(img => {
+                const loadingElement = document.getElementById(`loading-${img.id.split('-')[1]}`);
+                
+                // Thêm sự kiện onload và onerror
+                img.onload = function() {
+                    this.style.display = 'block';
+                    if (loadingElement) loadingElement.style.display = 'none';
+                };
+                
+                img.onerror = function() {
+                    console.error(`Không thể tải ảnh: ${this.dataset.src}`);
+                    retryImageLoad(this, loadingElement);
+                };
+                
+                // Bắt đầu tải ảnh
+                loadImageWithProxy(img);
+            });
+        }
 
-    // Xử lý message từ iframe
-    window.addEventListener('message', (e) => {
-      if (e.data === 'embedLoadFailed') {
-        document.querySelectorAll('.embed-frame').forEach(iframe => {
-          const img = iframe.nextElementSibling;
-          if (img && img.tagName === 'IMG') {
-            img.style.display = 'block';
-          }
-        });
-      }
-    });
-  </script>
+        // Tải ảnh qua proxy
+        function loadImageWithProxy(imgElement) {
+            const proxyUrl = `https://azcloud.sbs/proxy?url=${encodeURIComponent(imgElement.dataset.src)}`;
+            imgElement.src = proxyUrl;
+        }
+
+        // Hàm thử lại khi tải ảnh lỗi
+        function retryImageLoad(imgElement, loadingElement, attempt = 1) {
+            if (attempt > 3) {
+                console.warn('Đã thử tải lại 3 lần nhưng không thành công');
+                if (loadingElement) {
+                    loadingElement.textContent = 'Không thể tải ảnh';
+                }
+                return;
+            }
+            
+            if (loadingElement) {
+                loadingElement.textContent = `Đang thử tải lại (lần ${attempt})...`;
+            }
+            
+            setTimeout(() => {
+                loadImageWithProxy(imgElement);
+            }, 1000 * attempt);
+        }
+
+        // Fallback tải ảnh trực tiếp (không qua proxy)
+        function loadImagesDirect() {
+            document.querySelectorAll('.proxy-image[data-src]').forEach(img => {
+                img.src = convertToDirectUrl(img.dataset.src);
+            });
+        }
+
+        // Chuyển đổi URL proxy thành URL trực tiếp
+        function convertToDirectUrl(proxyUrl) {
+            const path = proxyUrl.replace('/proxy/', '');
+            return `https://cdn.jsdelivr.net/gh/${path}`;
+        }
+
+        // Khởi động ứng dụng khi DOM sẵn sàng
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
 </body>
 </html>
